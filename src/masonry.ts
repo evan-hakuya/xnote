@@ -4,11 +4,11 @@ import type { Settings, Store } from './settings.ts'
 
 const UNIT = 4 // px height of one grid row
 const CELL = '[data-testid="primaryColumn"] section [data-testid="cellInnerDiv"]'
-const switchFor: Record<FeedKind, keyof Settings> = {
+const switchFor = {
   home: 'masonryHome',
   profile: 'masonryProfile',
   search: 'masonrySearch',
-}
+} as const satisfies Record<FeedKind, keyof Settings>
 
 const CSS = `
 html.xnote-masonry [data-testid="sidebarColumn"] { display: none !important; }
@@ -23,8 +23,8 @@ html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid) {
   width: 100% !important;
   max-width: none !important;
 }
-/* What sits beside the feed (profile header, composer, tabs) keeps X's one-column width. */
-html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid) > :not(.xnote-grid, :has(.xnote-grid)) {
+/* A profile's banner and avatar scale with their width, so the profile header keeps X's width. */
+html.xnote-profile [data-testid="primaryColumn"] :has(.xnote-grid) > :not(.xnote-grid, :has(.xnote-grid)) {
   width: 100%;
   max-width: 600px;
   margin-inline: auto;
@@ -156,7 +156,6 @@ export function installMasonry(store: Store) {
   }
 
   const stop = () => {
-    document.documentElement.classList.remove('xnote-masonry')
     resizes.disconnect()
     children.disconnect()
     if (container) {
@@ -180,9 +179,11 @@ export function installMasonry(store: Store) {
     const values = store.get()
     const root = document.documentElement
     root.style.setProperty('--xnote-gap', `${values.cardGap}px`)
-    if (!values.enabled || broken || !kind || !values[switchFor[kind]]) return stop()
+    const wanted = values.enabled && !broken && kind !== null && values[switchFor[kind]]
+    root.classList.toggle('xnote-masonry', wanted)
+    root.classList.toggle('xnote-profile', wanted && kind === 'profile')
+    if (!wanted) return stop()
 
-    root.classList.add('xnote-masonry')
     const next = document.querySelector(CELL)?.parentElement ?? null
     if (next === container || !next) return
     stop()
@@ -191,9 +192,8 @@ export function installMasonry(store: Store) {
       // X changed its internals: fall back to the original single column (ADR-0002).
       broken = true
       console.warn('[xnote] masonry is off: X timeline internals were not found')
-      return
+      return queueSync()
     }
-    root.classList.add('xnote-masonry')
     container = next
     scroller = internals.scroller
     feedKey = String(scroller.props?.cacheKey ?? location.pathname)
