@@ -42,13 +42,15 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
   top: ${TOP};
   width: calc(${WIDTH} - ${POP.side}px);
   height: ${POP.vh}vh;
-  box-sizing: border-box;
-  padding: 48px;
   display: flex;
-  overflow: auto;
+  flex-direction: column;
   background: color-mix(in srgb, var(--xnote-bg) 90%, gray);
 }
-#xnote-cover > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
+/* The cover has the text above and, like X's viewer, the post's buttons below. */
+.xnote-cover-text { flex: 1; min-height: 0; display: flex; padding: 48px; overflow: auto; }
+.xnote-cover-text > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
+.xnote-cover-actions { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; }
+.xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
 html.xnote-sheet [data-testid="sidebarColumn"] { display: none !important; }
 html.xnote-sheet header[role="banner"] { position: fixed !important; visibility: hidden; }
 html.xnote-sheet main[role="main"] { flex-grow: 1 !important; align-items: stretch !important; }
@@ -106,6 +108,8 @@ export function routerOf(element: object): { push(path: string): void } | null {
 type Sheet = {
   backdrop: HTMLElement
   cover: HTMLElement
+  actions?: Element // the post's real row of buttons, which the cover shows a copy of
+  actionsHtml?: string
   from: string // the feed's path
   top: number // the feed's scroll position
   opened: number
@@ -132,14 +136,36 @@ export function installOverlay(store: Store) {
       `M${x} ${y}h${w}${arc} ${r} ${r}v${h}${arc} -${r} ${r}h-${w}${arc} -${r} -${r}v-${h}${arc} ${r} -${r}Z")`
   }
 
-  const setCover = (text: Element | null | undefined) => {
-    if (!sheet || !text || text.textContent === sheet.cover.textContent) return
-    sheet.cover.replaceChildren(text.cloneNode(true))
-    const length = text.textContent?.length ?? 0
-    sheet.cover.style.setProperty('--xnote-cover-font', length < 60 ? '40px' : length < 240 ? '28px' : '20px')
+  // X's layer container comes before the page in the document, so the id of a copy in there
+  // would win over the real element's id in every lookup. Copies carry no ids.
+  const copyOf = (source: Element) => {
+    const copy = source.cloneNode(true) as HTMLElement
+    copy.removeAttribute('id')
+    for (const element of copy.querySelectorAll('[id]')) element.removeAttribute('id')
+    return copy
   }
 
-  const openSheet = (text: Element | null) => {
+  const BUTTONS = 'button, a, [role="button"]'
+  /** Shows the text and the buttons of `post`, an article or a quoted post. */
+  const setCover = (post: Element | null | undefined) => {
+    if (!sheet || !post) return
+    const [words, bar] = sheet.cover.children as unknown as [HTMLElement, HTMLElement]
+    const text = post.querySelector('[data-testid="tweetText"]')
+    if (text && text.textContent !== words.textContent) {
+      words.replaceChildren(copyOf(text))
+      const length = text.textContent?.length ?? 0
+      sheet.cover.style.setProperty('--xnote-cover-font', length < 60 ? '40px' : length < 240 ? '28px' : '20px')
+    }
+    const actions = post.querySelector('[role="group"]:has([data-testid="like"], [data-testid="unlike"])')
+    // The row changes when the user likes the post or a count moves; then the copy follows.
+    if (actions && (actions !== sheet.actions || actions.outerHTML !== sheet.actionsHtml)) {
+      sheet.actions = actions
+      sheet.actionsHtml = actions.outerHTML
+      bar.replaceChildren(copyOf(actions))
+    }
+  }
+
+  const openSheet = (post: Element) => {
     // Inside X's layer container the copy is above the page and below X's own menus and dialogs.
     const layers = document.getElementById('layers')
     const column = document.querySelector('[data-testid="primaryColumn"]')
@@ -150,21 +176,30 @@ export function installOverlay(store: Store) {
     for (const source of [document.querySelector('header[role="banner"]'), column]) {
       if (!source) continue
       const rect = source.getBoundingClientRect()
-      const copy = source.cloneNode(true) as HTMLElement
-      // xnote's and X's lookups must not take the copy for the real element. X's layer
-      // container comes before the page in the document, so a copied id would win.
+      const copy = copyOf(source)
+      // xnote's and X's selectors must not take the copy for the real element.
       copy.removeAttribute('data-testid')
       copy.removeAttribute('role')
-      for (const element of copy.querySelectorAll('[id]')) element.removeAttribute('id')
       copy.classList.add('xnote-snapshot')
       copy.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;max-width:none;`
       backdrop.append(copy)
     }
     const cover = document.createElement('div')
     cover.id = 'xnote-cover'
+    const words = document.createElement('div')
+    words.className = 'xnote-cover-text'
+    const bar = document.createElement('div')
+    bar.className = 'xnote-cover-actions'
+    // The copy is the n-th button of the real row: pass the click on. X does the action.
+    bar.addEventListener('click', (event) => {
+      event.preventDefault()
+      const index = [...bar.querySelectorAll(BUTTONS)].indexOf((event.target as Element).closest(BUTTONS)!)
+      if (sheet?.actions?.isConnected) sheet.actions.querySelectorAll<HTMLElement>(BUTTONS)[index]?.click()
+    })
+    cover.append(words, bar)
     sheet?.backdrop.remove() // a sheet that was still closing
     sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false }
-    setCover(text)
+    setCover(post)
     layers.prepend(backdrop, cover)
     root.style.setProperty('--xnote-bg', getComputedStyle(document.body).backgroundColor)
     root.classList.add('xnote-sheet')
@@ -201,7 +236,7 @@ export function installOverlay(store: Store) {
       // X marks the post that the page is about with tabindex="-1". It changes when the user
       // opens a reply inside the sheet.
       const post = document.querySelector('main article[tabindex="-1"]')
-      setCover(post?.querySelector('[data-testid="tweetText"]'))
+      setCover(post)
       // On a new page X scrolls the post to just below the title bar, as if the bar were at the
       // top of the window. Here the bar is lower and would cover the post's first lines.
       const bar = document.querySelector(`${COLUMN} > div > div:first-child`)
@@ -276,14 +311,15 @@ export function installOverlay(store: Store) {
       event.stopPropagation()
       if (photo) return forward(photo)
       if (router && viewer) return router.push(viewer)
-      openSheet(subject.querySelector('[data-testid="tweetText"]'))
+      openSheet(subject)
       forward(page!)
     },
     true,
   )
 
   addEventListener('keydown', (event) => {
-    const open = root.classList.contains('xnote-sheet') && !document.querySelector('#layers [aria-modal="true"]')
+    // Escape first closes X's own dialog or menu, when one is open.
+    const open = root.classList.contains('xnote-sheet') && !document.querySelector('#layers :is([aria-modal="true"], [role="menu"])')
     if (event.key === 'Escape' && open) history.back()
   })
 }
