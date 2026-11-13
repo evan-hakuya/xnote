@@ -1,5 +1,10 @@
 export const defaults = {
   enabled: true,
+  masonryHome: true,
+  masonryProfile: true,
+  masonrySearch: true,
+  cardMinWidth: 280,
+  cardGap: 12,
 }
 
 export type Settings = typeof defaults
