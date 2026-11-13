@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { feedKind } from './route.ts'
+import { feedKind, isMediaLayer } from './route.ts'
+
+test('recognises the media viewer', () => {
+  assert.equal(isMediaLayer('/evan_hakuya/status/123/photo/1'), true)
+  assert.equal(isMediaLayer('/i/web/status/123/video/2'), true)
+  assert.equal(isMediaLayer('/evan_hakuya/status/123'), false)
+  assert.equal(isMediaLayer('/evan_hakuya/photo'), false)
+})
 
 test('recognises feed pages', () => {
   assert.equal(feedKind('/home'), 'home')

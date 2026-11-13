@@ -1,4 +1,5 @@
 import { columnsFor, placeCards } from './layout.ts'
+import { addStyle, onPageChange, queuePageCheck } from './page.ts'
 import { feedKind, type FeedKind } from './route.ts'
 import type { Settings, Store } from './settings.ts'
 
@@ -72,7 +73,6 @@ export function installMasonry(store: Store) {
   let scroller: Scroller | null = null
   let broken = false
   let lastLoad = 0
-  let syncQueued = false
   let layoutQueued = false
   // X restores the scroll position of a feed from its one-column positions, so xnote keeps its own.
   const positions = new Map<string, number>()
@@ -173,7 +173,6 @@ export function installMasonry(store: Store) {
   }
 
   const sync = () => {
-    syncQueued = false
     const kind = feedKind(location.pathname)
     if (kind === 'keep') return
     const values = store.get()
@@ -192,7 +191,7 @@ export function installMasonry(store: Store) {
       // X changed its internals: fall back to the original single column (ADR-0002).
       broken = true
       console.warn('[xnote] masonry is off: X timeline internals were not found')
-      return queueSync()
+      return queuePageCheck()
     }
     container = next
     scroller = internals.scroller
@@ -206,17 +205,11 @@ export function installMasonry(store: Store) {
     lastLoad = Date.now() // X needs a moment to render every post again; the page is short until then
     queueLayout()
   }
-  const queueSync = () => {
-    if (syncQueued) return
-    syncQueued = true
-    requestAnimationFrame(sync)
-  }
 
-  // <head> may not exist yet at document-start.
-  document.documentElement.append(Object.assign(document.createElement('style'), { textContent: CSS }))
-  new MutationObserver(queueSync).observe(document, { childList: true, subtree: true })
+  addStyle(CSS)
+  onPageChange(sync)
   addEventListener('scroll', onScroll, { passive: true })
-  store.subscribe(() => (queueSync(), queueLayout()))
+  store.subscribe(() => (queuePageCheck(), queueLayout()))
 
   return { isBroken: () => broken }
 }

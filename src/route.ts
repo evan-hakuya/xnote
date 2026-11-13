@@ -9,6 +9,11 @@ const PROFILE_TABS = new Set(['with_replies', 'highlights', 'articles', 'likes']
 // Routes that X shows as a layer above the page the user came from.
 const LAYER = /^\/(compose\/|intent\/|i\/keyboard_shortcuts|i\/display|[^/]+\/(photo|header_photo)$|.+\/status\/\d+\/(photo|video)\/)/
 
+/** X's media viewer: a layer above the page, at `/<user>/status/<id>/photo/<n>` or `.../video/<n>`. */
+export function isMediaLayer(pathname: string) {
+  return /\/status\/\d+\/(photo|video)\/\d+$/.test(pathname)
+}
+
 /**
  * Says which kind of feed a path shows. `'keep'` means a layer route: the page below it is
  * unknown from the path alone, so the caller must leave its current state as it is.

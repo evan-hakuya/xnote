@@ -1,4 +1,5 @@
 import { t, type MessageKey } from './i18n.ts'
+import { onPageChange } from './page.ts'
 import type { Settings, Store } from './settings.ts'
 
 const ENTRY_ID = 'xnote-entry'
@@ -13,6 +14,7 @@ const switches: { key: KeysOf<boolean>; hint?: MessageKey }[] = [
   { key: 'masonryHome' },
   { key: 'masonryProfile' },
   { key: 'masonrySearch' },
+  { key: 'detailOverlay' },
 ]
 const numbers: { key: KeysOf<number>; min: number; max: number }[] = [
   { key: 'cardMinWidth', min: 160, max: 800 },
@@ -127,7 +129,7 @@ export function installPanel(store: Store, getNotice: () => MessageKey | null) {
     more.after(entry)
   }
 
-  // X is a single-page app that re-renders its navigation, so keep the entry in place.
-  new MutationObserver(ensureEntry).observe(document, { childList: true, subtree: true })
+  // X re-renders its navigation, so keep the entry in place.
+  onPageChange(ensureEntry)
   ensureEntry()
 }

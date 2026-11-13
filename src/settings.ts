@@ -3,6 +3,7 @@ export const defaults = {
   masonryHome: true,
   masonryProfile: true,
   masonrySearch: true,
+  detailOverlay: true,
   cardMinWidth: 280,
   cardGap: 12,
 }
