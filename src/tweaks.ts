@@ -1,3 +1,4 @@
+import { BIRD_COMPOSE, X_COMPOSE, X_LOGO_ALT } from './classic-assets.ts'
 import { onPageChange } from './page.ts'
 import type { Settings, Store } from './settings.ts'
 
@@ -26,6 +27,9 @@ const PAID_TICK =
   'M16.5 3H2v18h15c3.038 0 5.5-2.46 5.5-5.5 0-1.4-.524-2.68-1.385-3.65-.08-.09-.089-.22-.023-.32.574-.87.908-1.91.908-3.03C22 5.46 19.538 3 16.5 3zm-.796 5.99c.457-.05.892-.17 1.296-.35-.302.45-.684.84-1.125 1.15.004.1.006.19.006.29 0 2.94-2.269 6.32-6.421 6.32-1.274 0-2.46-.37-3.459-1 .177.02.357.03.539.03 1.057 0 2.03-.35 2.803-.95-.988-.02-1.821-.66-2.109-1.54.138.03.28.04.425.04.206 0 .405-.03.595-.08-1.033-.2-1.811-1.1-1.811-2.18v-.03c.305.17.652.27 1.023.28-.606-.4-1.004-1.08-1.004-1.85 0-.4.111-.78.305-1.11 1.113 1.34 2.775 2.22 4.652 2.32-.038-.17-.058-.33-.058-.51 0-1.23 1.01-2.22 2.256-2.22.649 0 1.235.27 1.647.7.514-.1.997-.28 1.433-.54-.168.52-.526.96-.992 1.23z'
 // A timeline entry that filters.ts marked with what it is.
 const marked = (kind: string) => hide(`[data-testid="cellInnerDiv"][data-xnote~="${kind}"]`)
+// The buttons that post. X made them black and white; on Twitter they had the accent colour.
+const POST = ':is([data-testid="SideNav_NewTweet_Button"], [data-testid="tweetButtonInline"], [data-testid="tweetButton"])'
+const BLUE = '29 155 240'
 
 type Switch = { [K in keyof Settings]: Settings[K] extends boolean ? K : never }[keyof Settings]
 
@@ -77,11 +81,16 @@ const rules: Partial<Record<Switch, string>> = {
   ),
   // The sidebar is a list of sections and the search box is the first one.
   hideSidebarContent: hide('[data-testid="sidebarColumn"] div:has(> div:first-child form[role="search"]) > div:not(:first-child)'),
-  // The words and the page title of the classic style are in filters.ts.
+  // The words, the page title and the favicon of the classic style are in filters.ts.
   birdLogo: `
-svg path[d="${X_LOGO}"] { fill: rgb(29, 155, 240); d: path("${BIRD_LOGO}"); }
+svg path:is([d="${X_LOGO}"], [d="${X_LOGO_ALT}"]) { fill: rgb(${BLUE}); d: path("${BIRD_LOGO}"); }
 svg path[d="${X_HOME[0]}"] { d: path("${BIRD_HOME[0]}"); }
-svg path[d="${X_HOME[1]}"] { d: path("${BIRD_HOME[1]}"); }`,
+svg path[d="${X_HOME[1]}"] { d: path("${BIRD_HOME[1]}"); }
+[data-testid="SideNav_NewTweet_Button"] path[d="${X_COMPOSE}"] { d: path("${BIRD_COMPOSE}"); }
+[data-testid="SideNav_NewTweet_Button"] path[clip-rule="evenodd"] { display: none; }
+${POST} { background-color: rgb(${BLUE}) !important; }
+${POST}:hover:not(:disabled) { background-color: rgb(${BLUE} / 0.8) !important; }
+${POST} > div, ${POST} > div > svg { color: #fff !important; }`,
   // A gold tick (an organisation) has a gradient; every other tick here is taken as paid.
   premiumCheck: `svg[data-testid="icon-verified"]:not(:has(linearGradient)) path { d: path("${PAID_TICK}"); }`,
   hideRetweets: marked('retweet'),

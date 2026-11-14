@@ -28,7 +28,7 @@ Control Panel for Twitter 里在所有者的配置中生效、但是 xnote 决�
 - 隐藏搜索页的推荐内容（`hideSuggestedContentSearch`）。
 - 查看引用时隐藏被引用的帖子（`tweakQuoteTweetsPage`）。
 - Premium 推销里必须用脚本标记的部分（`hideTwitterBlueUpsells` 的其余规则）。
-- 「经典推特风格」的其余部分：网站图标（favicon）、其余页面上的「帖子」字样。
+- 「经典推特风格」的其余部分：其余页面上的「帖子」字样。
 
 ## 在所有者的配置里本来就不生效，不需要做
 

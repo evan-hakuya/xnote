@@ -1,3 +1,4 @@
+import { BIRD_ICON, BIRD_ICON_UNREAD } from './classic-assets.ts'
 import { pickLang, type Lang } from './i18n.ts'
 import { onPageChange } from './page.ts'
 import { fibers } from './react.ts'
@@ -48,8 +49,19 @@ const WORDING = [
 ].join(',')
 
 export function installFilters(store: Store) {
+  let xIcon: string | undefined // X's own favicon, to put back when the classic style goes off
+
   onPageChange(() => {
     const values = store.get()
+    const classic = values.enabled && values.birdLogo
+
+    // X shows unread notifications as "(3)" in the title and as a dot on the favicon.
+    const icon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+    if (icon) {
+      if (!icon.href.startsWith('data:')) xIcon = icon.href
+      const wanted = classic ? (/^\(\d/.test(document.title) ? BIRD_ICON_UNREAD : BIRD_ICON) : xIcon
+      if (wanted && icon.href !== wanted) icon.href = wanted
+    }
     if (!values.enabled) return
 
     // Mark each entry once with what it is. The style rules in tweaks.ts hide by these marks.
@@ -65,7 +77,7 @@ export function installFilters(store: Store) {
       if (quoted) cell.dataset.xnoteQuote = quoted
     }
 
-    if (!values.birdLogo) return
+    if (!classic) return
     if (/(^| \/ )X$/.test(document.title)) document.title = document.title.replace(/X$/, 'Twitter')
     const lang = pickLang(document.documentElement.lang)
     for (const element of document.querySelectorAll(WORDING)) {
