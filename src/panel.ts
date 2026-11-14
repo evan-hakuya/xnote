@@ -1,5 +1,5 @@
 import { t, type MessageKey } from './i18n.ts'
-import { onPageChange } from './page.ts'
+import { addStyle, onPageChange } from './page.ts'
 import type { Settings, Store } from './settings.ts'
 
 const ENTRY_ID = 'xnote-entry'
@@ -95,6 +95,9 @@ function createPanel(store: Store, notice: HTMLElement) {
 
 export function installPanel(store: Store, getNotice: () => MessageKey | null) {
   let dialog: HTMLDialogElement | undefined
+  // X gives its navigation items a pill of 10% text colour under the pointer, from script. The
+  // entry is a copy without that script; the pill's shape and transition come with the copy.
+  addStyle('#xnote-entry:hover > div { background-color: color-mix(in srgb, currentColor 10%, transparent); }')
   const notice = el('p')
   notice.setAttribute('role', 'status')
 

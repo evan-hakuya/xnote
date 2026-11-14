@@ -4,7 +4,7 @@ export const defaults = {
   masonryProfile: true,
   masonrySearch: true,
   detailOverlay: true,
-  hoverPlay: true,
+  hoverPlay: false,
   cardMinWidth: 280,
   cardGap: 12,
 }
