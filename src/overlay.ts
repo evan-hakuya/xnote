@@ -1,3 +1,4 @@
+import { t } from './i18n.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
 import { feedKind, isMediaLayer } from './route.ts'
 import type { Store } from './settings.ts'
@@ -48,7 +49,14 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
      no background of their own, so the radius alone is enough and the button names stay whole. */
   border-radius: ${POP.radius}px 0 0 ${POP.radius}px;
   background: color-mix(in srgb, var(--xnote-bg) 90%, gray);
+  color: var(--xnote-fg);
 }
+/* Like X's viewer: "close" at the top left, "hide the side column" at the top right. */
+.xnote-cover-tools { position: absolute; inset: 12px 12px auto; display: flex; justify-content: space-between; pointer-events: none; }
+.xnote-cover-tools button { width: 36px; height: 36px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; pointer-events: auto; }
+.xnote-cover-tools svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
+html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radius}px; }
+html.xnote-sheet-wide .xnote-cover-tools button:last-child svg { rotate: 180deg; }
 /* The cover has the text above and, like X's viewer, the post's buttons below. */
 .xnote-cover-text { flex: 1; min-height: 0; display: flex; padding: 48px; overflow: auto; }
 .xnote-cover-text > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
@@ -56,12 +64,12 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
 .xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
 /* X colours its buttons and shows their names from script when the pointer is over them. The
    copies have no script, so the same look is plain CSS here. */
-.xnote-cover-actions [data-tip] { --tint: 29 155 240; position: relative; overflow: visible !important; }
-.xnote-cover-actions [data-tip]:is([data-testid="retweet"], [data-testid="unretweet"]) { --tint: 0 186 124; }
-.xnote-cover-actions [data-tip]:is([data-testid="like"], [data-testid="unlike"]) { --tint: 249 24 128; }
-.xnote-cover-actions [data-tip]:hover * { color: rgb(var(--tint)) !important; }
-.xnote-cover-actions [data-tip]:hover svg { border-radius: 50%; background: rgb(var(--tint) / 0.1); box-shadow: 0 0 0 8px rgb(var(--tint) / 0.1); }
-.xnote-cover-actions [data-tip]::after {
+#xnote-cover [data-tip] { --tint: 29 155 240; position: relative; overflow: visible !important; }
+#xnote-cover [data-tip]:is([data-testid="retweet"], [data-testid="unretweet"]) { --tint: 0 186 124; }
+#xnote-cover [data-tip]:is([data-testid="like"], [data-testid="unlike"]) { --tint: 249 24 128; }
+#xnote-cover [data-tip]:hover * { color: rgb(var(--tint)) !important; }
+#xnote-cover [data-tip]:hover svg { border-radius: 50%; background: rgb(var(--tint) / 0.1); box-shadow: 0 0 0 8px rgb(var(--tint) / 0.1); }
+#xnote-cover [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
   top: calc(50% + 14px); /* just below the icon, where X shows it */
@@ -76,7 +84,7 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
   pointer-events: none;
   opacity: 0;
 }
-.xnote-cover-actions [data-tip]:hover::after { opacity: 1; transition: opacity 0.1s 0.4s; }
+#xnote-cover [data-tip]:hover::after { opacity: 1; transition: opacity 0.1s 0.4s; }
 html.xnote-sheet [data-testid="sidebarColumn"] { display: none !important; }
 html.xnote-sheet header[role="banner"] { position: fixed !important; visibility: hidden; }
 html.xnote-sheet main[role="main"] { flex-grow: 1 !important; align-items: stretch !important; }
@@ -97,6 +105,8 @@ ${COLUMN} > div > div:first-child { top: ${TOP} !important; }
 `
 // A click on these keeps what X does with it.
 const INTERACTIVE = 'a, button, input, textarea, video, [role="button"], [role="link"], [data-testid="videoPlayer"]'
+const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
+const SIDE_ICON = 'M12.96 4.54 20.41 12l-7.45 7.46-1.42-1.42L17.59 12l-6.05-6.04 1.42-1.42zm-6.5 0L13.91 12l-7.45 7.46-1.42-1.42L11.09 12 5.04 5.96l1.42-1.42z'
 
 // X's private React internals. Everything read from them is checked before use, and every
 // caller has a path that works without them.
@@ -140,6 +150,7 @@ type Sheet = {
   top: number // the feed's scroll position
   opened: number
   shown: boolean
+  trail: string[] // the pages opened inside the sheet, one browser history entry each
   page?: { path: string; since: number } // the post page that the sheet shows now
   closing?: true
 }
@@ -196,6 +207,28 @@ export function installOverlay(store: Store) {
     }
   }
 
+  // "Close" leaves the sheet in one step, however many replies the user opened inside it.
+  const closeAll = () => {
+    if (sheet?.shown && !sheet.closing) history.go(-Math.max(1, sheet.trail.length))
+  }
+
+  let wide = false // the side column is hidden; kept for the next sheet, as X's viewer does
+  const toolButton = (label: string, path: string, action: () => void) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.setAttribute('aria-label', label)
+    button.setAttribute('data-tip', label)
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('viewBox', '0 0 24 24')
+    svg.setAttribute('aria-hidden', 'true')
+    const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    shape.setAttribute('d', path)
+    svg.append(shape)
+    button.append(svg)
+    button.addEventListener('click', action)
+    return button
+  }
+
   const openSheet = (post: Element) => {
     // Inside X's layer container the copy is above the page and below X's own menus and dialogs.
     const layers = document.getElementById('layers')
@@ -227,13 +260,23 @@ export function installOverlay(store: Store) {
       const index = [...bar.querySelectorAll(BUTTONS)].indexOf((event.target as Element).closest(BUTTONS)!)
       if (sheet?.actions?.isConnected) sheet.actions.querySelectorAll<HTMLElement>(BUTTONS)[index]?.click()
     })
-    cover.append(words, bar)
+    const tools = document.createElement('div')
+    tools.className = 'xnote-cover-tools'
+    const side = toolButton(t(wide ? 'showSide' : 'hideSide'), SIDE_ICON, () => {
+      wide = root.classList.toggle('xnote-sheet-wide')
+      for (const name of ['aria-label', 'data-tip']) side.setAttribute(name, t(wide ? 'showSide' : 'hideSide'))
+    })
+    tools.append(toolButton(t('close'), CLOSE_ICON, closeAll), side)
+    cover.append(words, bar, tools)
     sheet?.backdrop.remove() // a sheet that was still closing
-    sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false }
+    sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false, trail: [] }
     setCover(post)
     layers.prepend(backdrop, cover)
-    root.style.setProperty('--xnote-bg', getComputedStyle(document.body).backgroundColor)
+    const theme = getComputedStyle(document.body)
+    root.style.setProperty('--xnote-bg', theme.backgroundColor)
+    root.style.setProperty('--xnote-fg', theme.color)
     root.classList.add('xnote-sheet')
+    root.classList.toggle('xnote-sheet-wide', wide)
     cutHole()
   }
 
@@ -263,7 +306,12 @@ export function installOverlay(store: Store) {
     const path = location.pathname
     if (/\/status\/\d+/.test(path) || (sheet.shown && feedKind(path) === 'keep')) {
       sheet.shown = true
-      if (sheet.page?.path !== path) sheet.page = { path, since: Date.now() }
+      if (sheet.page?.path !== path) {
+        sheet.page = { path, since: Date.now() }
+        // The page before the last one again means "back"; any other page is a step forward.
+        if (sheet.trail.at(-2) === path) sheet.trail.pop()
+        else sheet.trail.push(path)
+      }
       // X marks the post that the page is about with tabindex="-1". It changes when the user
       // opens a reply inside the sheet.
       const post = document.querySelector('main article[tabindex="-1"]')
@@ -316,7 +364,7 @@ export function installOverlay(store: Store) {
 
       // A click outside the popup closes it.
       if (target.matches(`html.xnote-overlay ${VIEWER}`)) return history.back()
-      if (target.id === 'xnote-backdrop') return sheet?.closing ? undefined : history.back()
+      if (target.id === 'xnote-backdrop') return closeAll()
 
       // In the masonry feed, a click on a card opens the overlay instead of the post's page.
       const article = target.closest('.xnote-grid article')
@@ -351,6 +399,6 @@ export function installOverlay(store: Store) {
   addEventListener('keydown', (event) => {
     // Escape first closes X's own dialog or menu, when one is open.
     const open = root.classList.contains('xnote-sheet') && !document.querySelector('#layers :is([aria-modal="true"], [role="menu"])')
-    if (event.key === 'Escape' && open) history.back()
+    if (event.key === 'Escape' && open) closeAll()
   })
 }

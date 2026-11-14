@@ -2,6 +2,8 @@ const messages = {
   en: {
     settings: 'xnote settings',
     close: 'Close',
+    hideSide: 'Hide the side column',
+    showSide: 'Show the side column',
     enabled: 'Enable xnote',
     enabledHint: 'Turn off to restore the original X.',
     masonryHome: 'Masonry on Home',
@@ -15,6 +17,8 @@ const messages = {
   'zh-Hans': {
     settings: 'xnote 设置',
     close: '关闭',
+    hideSide: '隐藏侧栏',
+    showSide: '显示侧栏',
     enabled: '启用 xnote',
     enabledHint: '关闭后 X 完全恢复原样。',
     masonryHome: '首页瀑布流',
@@ -28,6 +32,8 @@ const messages = {
   'zh-Hant': {
     settings: 'xnote 設定',
     close: '關閉',
+    hideSide: '隱藏側欄',
+    showSide: '顯示側欄',
     enabled: '啟用 xnote',
     enabledHint: '關閉後 X 完全恢復原樣。',
     masonryHome: '首頁瀑布流',
