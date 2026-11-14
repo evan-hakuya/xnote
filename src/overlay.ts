@@ -305,8 +305,15 @@ export function installOverlay(store: Store) {
     // the same picture, so it covers the page until that is done and nothing flashes.
     closing.backdrop.style.clipPath = ''
     const started = Date.now()
+    let layout = ''
+    let settled = started
     const timer = setInterval(() => {
-      const ready = document.querySelector('main .xnote-grid') && Math.abs(scrollY - closing.top) < 4
+      // Ready means: the feed is back, at its old scroll position, and its cards stopped moving.
+      const grid = document.querySelector('main .xnote-grid')
+      const now = grid ? Array.from(grid.children, (cell) => (cell as HTMLElement).style.gridArea).join() : ''
+      if (now !== layout) settled = Date.now()
+      layout = now
+      const ready = grid && Math.abs(scrollY - closing.top) < 4 && Date.now() - settled >= 200
       if (!ready && Date.now() - started < 1500) return
       clearInterval(timer)
       drop()

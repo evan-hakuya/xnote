@@ -30,6 +30,18 @@ test('a full-width item starts below every column and resets them', () => {
   ])
 })
 
+test('a card keeps the column it had, unless that column is gone', () => {
+  const kept = { height: 10, full: false, column: 2 }
+  assert.deepEqual(placeCards([card(10), kept, card(10)], 2, 10, 0), [
+    { column: 1, row: 1, span: 1 },
+    { column: 2, row: 1, span: 1 },
+    { column: 1, row: 2, span: 1 },
+  ])
+  // Column 2 is taller now, and the kept card still goes there.
+  assert.deepEqual(placeCards([{ height: 50, full: false, column: 2 }, kept], 2, 10, 0)[1], { column: 2, row: 6, span: 1 })
+  assert.equal(placeCards([{ height: 10, full: false, column: 3 }], 2, 10, 0)[0]!.column, 1)
+})
+
 test('an empty item takes one row and zero columns falls back to one', () => {
   assert.deepEqual(placeCards([card(0), card(4)], 0, 4, 12), [
     { column: 1, row: 1, span: 1 },

@@ -77,6 +77,10 @@ export function installMasonry(store: Store) {
   // X restores the scroll position of a feed from its one-column positions, so xnote keeps its own.
   const positions = new Map<string, number>()
   let feedKey = ''
+  // The column of every card that was placed, by feed and post. Without it the cards change
+  // columns each time a height changes or X builds the feed again, which looks like a reload.
+  const pins = new Map<string, number>()
+  let pinnedColumns = 0
   let restore: { top: number; until: number } | undefined
 
   // X only renders the posts near the viewport and positions them for one column. In a grid
@@ -119,9 +123,20 @@ export function installMasonry(store: Store) {
     container.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`
     // Empty cells and the cells that the CSS hides take no part in the placement.
     const cells = all.filter((cell) => cell.offsetHeight > 0 || void (cell.style.gridArea = '1 / 1'))
-    const items = cells.map((cell) => ({ height: cell.offsetHeight, full: !cell.classList.contains('xnote-card') }))
+    if (columns !== pinnedColumns) pins.clear()
+    pinnedColumns = columns
+    const keys = cells.map((cell) => {
+      const post = cell.querySelector('time')?.closest('a')?.getAttribute('href')
+      return post ? `${feedKey}|${post}` : undefined
+    })
+    const items = cells.map((cell, index) => ({
+      height: cell.offsetHeight,
+      full: !cell.classList.contains('xnote-card'),
+      column: keys[index] ? pins.get(keys[index]) : undefined,
+    }))
     placeCards(items, columns, UNIT, gap).forEach(({ column, row, span }, index) => {
       cells[index]!.style.gridArea = column ? `${row} / ${column} / span ${span} / span 1` : `${row} / 1 / span ${span} / -1`
+      if (column && keys[index]) pins.set(keys[index], column)
     })
     if (restore) {
       // Wait until enough posts are rendered again, but not forever.
