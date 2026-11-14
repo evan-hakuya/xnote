@@ -53,10 +53,11 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
 }
 /* Like X's viewer: "close" at the top left, "hide the side column" at the top right. */
 .xnote-cover-tools { position: absolute; inset: 12px 12px auto; display: flex; justify-content: space-between; pointer-events: none; }
-/* The values below are the ones X's viewer has, read from the live page. */
-.xnote-cover-tools button { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9999px; background: rgb(0 0 0 / 0.75); color: #fff; cursor: pointer; pointer-events: auto; }
-.xnote-cover-tools button:hover { background: rgb(26 26 26 / 0.75); }
-.xnote-cover-tools svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
+/* In X's viewer these buttons are black circles on black media, so only the icon shows, and the
+   circle turns a little lighter under the pointer. On the cover that is: no circle, then a grey one. */
+.xnote-cover-tools button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9999px; background: none; color: inherit; cursor: pointer; pointer-events: auto; }
+.xnote-cover-tools button:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.xnote-cover-tools svg { width: 20px; height: 20px; fill: currentColor; }
 html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radius}px; }
 /* The cover has the text above and, like X's viewer, the post's buttons below. */
 .xnote-cover-text { flex: 1; min-height: 0; display: flex; padding: 48px; overflow: auto; }
