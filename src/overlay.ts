@@ -379,7 +379,10 @@ export function installOverlay(store: Store) {
       if (target.id === 'xnote-backdrop') return closeAll()
 
       // In the masonry feed, a click on a card opens the overlay instead of the post's page.
-      const article = target.closest('.xnote-grid article')
+      // Inside the sheet the same holds for a post with media, such as a quoted photo post:
+      // it opens in the viewer. A post without media opens in the sheet, which X does itself.
+      const inSheet = root.classList.contains('xnote-sheet')
+      const article = target.closest(inSheet ? 'main article' : '.xnote-grid article')
       if (!article) return
       if (event.metaKey || event.ctrlKey || event.shiftKey || getSelection()?.toString()) return
       const interactive = target.closest<HTMLElement>(INTERACTIVE)
@@ -397,7 +400,7 @@ export function installOverlay(store: Store) {
       const router = viewer ? routerOf(subject) : null
       // A click on this makes X open the post's page.
       const page = quote ?? article.querySelector<HTMLElement>('a[href*="/status/"]:has(time)')
-      if (!photo && !router && !page) return
+      if (!photo && !router && (inSheet || !page)) return
       event.preventDefault()
       event.stopPropagation()
       if (photo) return forward(photo)
