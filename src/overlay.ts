@@ -53,10 +53,11 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
 }
 /* Like X's viewer: "close" at the top left, "hide the side column" at the top right. */
 .xnote-cover-tools { position: absolute; inset: 12px 12px auto; display: flex; justify-content: space-between; pointer-events: none; }
-.xnote-cover-tools button { width: 36px; height: 36px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; pointer-events: auto; }
+/* The values below are the ones X's viewer has, read from the live page. */
+.xnote-cover-tools button { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9999px; background: rgb(0 0 0 / 0.75); color: #fff; cursor: pointer; pointer-events: auto; }
+.xnote-cover-tools button:hover { background: rgb(26 26 26 / 0.75); }
 .xnote-cover-tools svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
 html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radius}px; }
-html.xnote-sheet-wide .xnote-cover-tools button:last-child svg { rotate: 180deg; }
 /* The cover has the text above and, like X's viewer, the post's buttons below. */
 .xnote-cover-text { flex: 1; min-height: 0; display: flex; padding: 48px; overflow: auto; }
 .xnote-cover-text > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
@@ -64,20 +65,24 @@ html.xnote-sheet-wide .xnote-cover-tools button:last-child svg { rotate: 180deg;
 .xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
 /* X colours its buttons and shows their names from script when the pointer is over them. The
    copies have no script, so the same look is plain CSS here. */
-#xnote-cover [data-tip] { --tint: 29 155 240; position: relative; overflow: visible !important; }
-#xnote-cover [data-tip]:is([data-testid="retweet"], [data-testid="unretweet"]) { --tint: 0 186 124; }
-#xnote-cover [data-tip]:is([data-testid="like"], [data-testid="unlike"]) { --tint: 249 24 128; }
-#xnote-cover [data-tip]:hover * { color: rgb(var(--tint)) !important; }
-#xnote-cover [data-tip]:hover svg { border-radius: 50%; background: rgb(var(--tint) / 0.1); box-shadow: 0 0 0 8px rgb(var(--tint) / 0.1); }
+#xnote-cover [data-tip] { position: relative; overflow: visible !important; }
+/* In the viewer a button keeps its colour and gets a circle of 10% white, on black. The cover
+   has the theme's colours, so the circle is 10% of the text colour: light grey or dark grey. */
+.xnote-cover-actions [data-tip]:hover svg {
+  --ring: color-mix(in srgb, currentColor 10%, transparent);
+  border-radius: 50%;
+  background: var(--ring);
+  box-shadow: 0 0 0 9px var(--ring);
+}
 #xnote-cover [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
-  top: calc(50% + 14px); /* just below the icon, where X shows it */
+  top: calc(50% + 20px);
   left: 50%;
   translate: -50% 0;
-  padding: 2px 4px;
-  border-radius: 2px;
-  background: rgb(91 112 131 / 0.8);
+  padding: 4px 8px;
+  border-radius: 16px;
+  background: rgb(0 0 0 / 0.8);
   color: #fff;
   font: 11px/12px TwitterChirp, -apple-system, system-ui, sans-serif;
   white-space: nowrap;
@@ -106,7 +111,8 @@ ${COLUMN} > div > div:first-child { top: ${TOP} !important; }
 // A click on these keeps what X does with it.
 const INTERACTIVE = 'a, button, input, textarea, video, [role="button"], [role="link"], [data-testid="videoPlayer"]'
 const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
-const SIDE_ICON = 'M12.96 4.54 20.41 12l-7.45 7.46-1.42-1.42L17.59 12l-6.05-6.04 1.42-1.42zm-6.5 0L13.91 12l-7.45 7.46-1.42-1.42L11.09 12 5.04 5.96l1.42-1.42z'
+const HIDE_ICON = 'M11.59 12L3.54 3.96l1.42-1.42L14.41 12l-9.45 9.46-1.42-1.42L11.59 12zm7 0l-8.05-8.04 1.42-1.42L21.41 12l-9.45 9.46-1.42-1.42L18.59 12z'
+const SHOW_ICON = 'M12.04 2.54l1.42 1.42L5.41 12l8.05 8.04-1.42 1.42L2.59 12l9.45-9.46zm7 0l1.42 1.42L12.41 12l8.05 8.04-1.42 1.42L9.59 12l9.45-9.46z'
 
 // X's private React internals. Everything read from them is checked before use, and every
 // caller has a path that works without them.
@@ -262,10 +268,15 @@ export function installOverlay(store: Store) {
     })
     const tools = document.createElement('div')
     tools.className = 'xnote-cover-tools'
-    const side = toolButton(t(wide ? 'showSide' : 'hideSide'), SIDE_ICON, () => {
-      wide = root.classList.toggle('xnote-sheet-wide')
-      for (const name of ['aria-label', 'data-tip']) side.setAttribute(name, t(wide ? 'showSide' : 'hideSide'))
+    const side = toolButton('', '', () => {
+      wide = !wide
+      showSide()
     })
+    const showSide = () => {
+      root.classList.toggle('xnote-sheet-wide', wide)
+      for (const name of ['aria-label', 'data-tip']) side.setAttribute(name, t(wide ? 'showSide' : 'hideSide'))
+      side.querySelector('path')!.setAttribute('d', wide ? SHOW_ICON : HIDE_ICON)
+    }
     tools.append(toolButton(t('close'), CLOSE_ICON, closeAll), side)
     cover.append(words, bar, tools)
     sheet?.backdrop.remove() // a sheet that was still closing
@@ -276,7 +287,7 @@ export function installOverlay(store: Store) {
     root.style.setProperty('--xnote-bg', theme.backgroundColor)
     root.style.setProperty('--xnote-fg', theme.color)
     root.classList.add('xnote-sheet')
-    root.classList.toggle('xnote-sheet-wide', wide)
+    showSide()
     cutHole()
   }
 
