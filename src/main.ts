@@ -3,6 +3,7 @@ import { installPanel } from './panel.ts'
 import { installMasonry } from './masonry.ts'
 import { installOverlay } from './overlay.ts'
 import { createStore } from './settings.ts'
+import { installTweaks } from './tweaks.ts'
 
 const store = createStore(localStorage)
 
@@ -12,4 +13,5 @@ store.subscribe((values) => document.documentElement.classList.toggle('xnote-on'
 const masonry = installMasonry(store)
 installOverlay(store)
 installHoverPlay(store)
+installTweaks(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null))

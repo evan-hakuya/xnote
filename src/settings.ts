@@ -7,6 +7,26 @@ export const defaults = {
   hoverPlay: false,
   cardMinWidth: 280,
   cardGap: 12,
+  // General switches. The defaults are the values the owner had in Control Panel for Twitter.
+  hideGrok: true,
+  hidePremiumNav: true,
+  hideConnectNav: true,
+  hideCreatorStudioNav: true,
+  hideBusinessNav: true,
+  hideAdsNav: true,
+  hideJobsNav: true,
+  hideMoneyNav: true,
+  hideChatDrawer: true,
+  hideViews: true,
+  hideViewActivity: true,
+  hideUpsells: true,
+  hideSidebarContent: true,
+  birdLogo: true,
+  mediaGrid: true,
+  navNormalFont: true,
+  menuNormalFont: true,
+  monochromeFollow: true,
+  twemoji: true,
 }
 
 export type Settings = typeof defaults

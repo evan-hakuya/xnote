@@ -9,18 +9,39 @@ const ICON =
 
 type KeysOf<T> = { [K in keyof Settings]: Settings[K] extends T ? K : never }[keyof Settings]
 
-const switches: { key: KeysOf<boolean>; hint?: MessageKey }[] = [
-  { key: 'enabled', hint: 'enabledHint' },
-  { key: 'masonryHome' },
-  { key: 'masonryProfile' },
-  { key: 'masonrySearch' },
-  { key: 'detailOverlay' },
-  { key: 'hoverPlay' },
+type Group = {
+  title: MessageKey
+  switches: KeysOf<boolean>[]
+  numbers?: { key: KeysOf<number>; min: number; max: number }[]
+}
+const groups: Group[] = [
+  {
+    title: 'groupFeed',
+    switches: ['enabled', 'masonryHome', 'masonryProfile', 'masonrySearch', 'detailOverlay', 'hoverPlay'],
+    numbers: [
+      { key: 'cardMinWidth', min: 160, max: 800 },
+      { key: 'cardGap', min: 0, max: 48 },
+    ],
+  },
+  {
+    title: 'groupNav',
+    switches: ['hideGrok', 'hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav'],
+  },
+  {
+    title: 'groupPage',
+    switches: ['hideChatDrawer', 'hideViews', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent'],
+  },
+  {
+    title: 'groupStyle',
+    switches: ['birdLogo', 'mediaGrid', 'navNormalFont', 'menuNormalFont', 'monochromeFollow', 'twemoji'],
+  },
 ]
-const numbers: { key: KeysOf<number>; min: number; max: number }[] = [
-  { key: 'cardMinWidth', min: 160, max: 800 },
-  { key: 'cardGap', min: 0, max: 48 },
-]
+// A line of explanation below the name of a switch.
+const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
+  enabled: 'enabledHint',
+  mediaGrid: 'reloadHint',
+  twemoji: 'reloadHint',
+}
 
 const CSS = `
 #xnote-panel {
@@ -33,6 +54,7 @@ const CSS = `
 #xnote-panel::backdrop { background: rgb(0 0 0 / 0.4); }
 #xnote-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 #xnote-panel h2 { margin: 0; font-size: 20px; line-height: 24px; }
+#xnote-panel h3 { margin: 16px 0 4px; font-size: 13px; line-height: 16px; opacity: 0.6; }
 #xnote-panel button { border: 0; background: none; color: inherit; font-size: 24px; line-height: 1; cursor: pointer; }
 #xnote-panel label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; cursor: pointer; }
 #xnote-panel small { display: block; opacity: 0.6; font-size: 13px; }
@@ -63,30 +85,35 @@ function createPanel(store: Store, notice: HTMLElement) {
   header.append(el('h2', t('settings')), close)
   dialog.append(header, notice)
 
-  for (const { key, hint } of switches) {
-    const row = el('label')
-    const text = el('span', t(key))
-    if (hint) text.append(el('small', t(hint)))
-    const input = el('input')
-    input.type = 'checkbox'
-    input.setAttribute('role', 'switch')
-    input.checked = store.get()[key]
-    input.addEventListener('change', () => store.set(key, input.checked))
-    row.append(text, input)
-    dialog.append(row)
-  }
+  for (const group of groups) {
+    dialog.append(el('h3', t(group.title)))
 
-  for (const { key, min, max } of numbers) {
-    const row = el('label')
-    const input = el('input')
-    input.type = 'number'
-    input.min = String(min)
-    input.max = String(max)
-    input.valueAsNumber = store.get()[key]
-    // Out-of-range and empty input is ignored until it becomes valid.
-    input.addEventListener('input', () => input.validity.valid && input.value && store.set(key, input.valueAsNumber))
-    row.append(el('span', t(key)), input)
-    dialog.append(row)
+    for (const key of group.switches) {
+      const row = el('label')
+      const text = el('span', t(key))
+      const hint = hints[key]
+      if (hint) text.append(el('small', t(hint)))
+      const input = el('input')
+      input.type = 'checkbox'
+      input.setAttribute('role', 'switch')
+      input.checked = store.get()[key]
+      input.addEventListener('change', () => store.set(key, input.checked))
+      row.append(text, input)
+      dialog.append(row)
+    }
+
+    for (const { key, min, max } of group.numbers ?? []) {
+      const row = el('label')
+      const input = el('input')
+      input.type = 'number'
+      input.min = String(min)
+      input.max = String(max)
+      input.valueAsNumber = store.get()[key]
+      // Out-of-range and empty input is ignored until it becomes valid.
+      input.addEventListener('input', () => input.validity.valid && input.value && store.set(key, input.valueAsNumber))
+      row.append(el('span', t(key)), input)
+      dialog.append(row)
+    }
   }
 
   document.body.append(dialog)
