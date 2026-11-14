@@ -13,6 +13,7 @@ type Group = {
   title: MessageKey
   switches: KeysOf<boolean>[]
   numbers?: { key: KeysOf<number>; min: number; max: number }[]
+  texts?: KeysOf<string>[]
 }
 const groups: Group[] = [
   {
@@ -24,21 +25,27 @@ const groups: Group[] = [
     ],
   },
   {
+    title: 'groupFilter',
+    switches: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts', 'hideUnavailableQuotes'],
+    texts: ['mutedQuotes'],
+  },
+  {
     title: 'groupNav',
     switches: ['hideGrok', 'hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav'],
   },
   {
     title: 'groupPage',
-    switches: ['hideChatDrawer', 'hideViews', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent'],
+    switches: ['hideChatDrawer', 'hideViews', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent', 'hideExplore'],
   },
   {
     title: 'groupStyle',
-    switches: ['birdLogo', 'mediaGrid', 'navNormalFont', 'menuNormalFont', 'monochromeFollow', 'twemoji'],
+    switches: ['birdLogo', 'premiumCheck', 'mediaGrid', 'navNormalFont', 'menuNormalFont', 'monochromeFollow', 'twemoji', 'bypassAge', 'disableNfl'],
   },
 ]
 // A line of explanation below the name of a switch.
 const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
   enabled: 'enabledHint',
+  birdLogo: 'classicHint',
   mediaGrid: 'reloadHint',
   twemoji: 'reloadHint',
 }
@@ -61,6 +68,7 @@ const CSS = `
 #xnote-panel input { flex: none; font: inherit; accent-color: rgb(29, 155, 240); }
 #xnote-panel input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
 #xnote-panel input[type="number"] { width: 80px; }
+#xnote-panel input[type="text"] { width: 180px; }
 #xnote-panel [role="status"] { margin: 0 0 8px; color: rgb(244, 33, 46); }
 `
 
@@ -112,6 +120,18 @@ function createPanel(store: Store, notice: HTMLElement) {
       // Out-of-range and empty input is ignored until it becomes valid.
       input.addEventListener('input', () => input.validity.valid && input.value && store.set(key, input.valueAsNumber))
       row.append(el('span', t(key)), input)
+      dialog.append(row)
+    }
+
+    for (const key of group.texts ?? []) {
+      const row = el('label')
+      const input = el('input')
+      input.type = 'text'
+      input.value = store.get()[key]
+      input.addEventListener('input', () => store.set(key, input.value))
+      const text = el('span', t(key))
+      text.append(el('small', t('namesHint')))
+      row.append(text, input)
       dialog.append(row)
     }
   }

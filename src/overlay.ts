@@ -1,5 +1,6 @@
 import { t } from './i18n.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
+import { fibers } from './react.ts'
 import { feedKind, isMediaLayer } from './route.ts'
 import type { Store } from './settings.ts'
 
@@ -114,15 +115,6 @@ const INTERACTIVE = 'a, button, input, textarea, video, [role="button"], [role="
 const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
 const HIDE_ICON = 'M11.59 12L3.54 3.96l1.42-1.42L14.41 12l-9.45 9.46-1.42-1.42L11.59 12zm7 0l-8.05-8.04 1.42-1.42L21.41 12l-9.45 9.46-1.42-1.42L18.59 12z'
 const SHOW_ICON = 'M12.04 2.54l1.42 1.42L5.41 12l8.05 8.04-1.42 1.42L2.59 12l9.45-9.46zm7 0l1.42 1.42L12.41 12l8.05 8.04-1.42 1.42L9.59 12l9.45-9.46z'
-
-// X's private React internals. Everything read from them is checked before use, and every
-// caller has a path that works without them.
-function fibers(element: object) {
-  const key = Object.keys(element).find((name) => name.startsWith('__reactFiber$'))
-  const chain: any[] = []
-  for (let fiber = key ? (element as any)[key] : null; fiber && chain.length < 300; fiber = fiber.return) chain.push(fiber)
-  return chain
-}
 
 /**
  * The post that an article or a quoted post shows. A quoted post has no link to itself in the

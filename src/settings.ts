@@ -27,6 +27,16 @@ export const defaults = {
   menuNormalFont: true,
   monochromeFollow: true,
   twemoji: true,
+  premiumCheck: true,
+  bypassAge: true,
+  disableNfl: true,
+  hideExplore: true,
+  hideRetweets: true,
+  hideSuggested: true,
+  hidePrompts: true,
+  hideMorePosts: true,
+  hideUnavailableQuotes: true,
+  mutedQuotes: 'KKong_1p', // account names, separated by spaces or commas
 }
 
 export type Settings = typeof defaults

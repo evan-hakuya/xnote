@@ -1,3 +1,4 @@
+import { installFilters } from './filters.ts'
 import { installHoverPlay } from './hoverplay.ts'
 import { installPanel } from './panel.ts'
 import { installMasonry } from './masonry.ts'
@@ -14,4 +15,5 @@ const masonry = installMasonry(store)
 installOverlay(store)
 installHoverPlay(store)
 installTweaks(store)
+installFilters(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null))
