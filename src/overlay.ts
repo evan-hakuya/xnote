@@ -44,6 +44,9 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
   height: ${POP.vh}vh;
   display: flex;
   flex-direction: column;
+  /* The cover lies above the hole, so the hole's round corners do not clip it. Its parts have
+     no background of their own, so the radius alone is enough and the button names stay whole. */
+  border-radius: ${POP.radius}px 0 0 ${POP.radius}px;
   background: color-mix(in srgb, var(--xnote-bg) 90%, gray);
 }
 /* The cover has the text above and, like X's viewer, the post's buttons below. */
@@ -51,6 +54,29 @@ html.xnote-sheet #xnote-backdrop::after { content: ''; position: absolute; inset
 .xnote-cover-text > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
 .xnote-cover-actions { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; }
 .xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
+/* X colours its buttons and shows their names from script when the pointer is over them. The
+   copies have no script, so the same look is plain CSS here. */
+.xnote-cover-actions [data-tip] { --tint: 29 155 240; position: relative; overflow: visible !important; }
+.xnote-cover-actions [data-tip]:is([data-testid="retweet"], [data-testid="unretweet"]) { --tint: 0 186 124; }
+.xnote-cover-actions [data-tip]:is([data-testid="like"], [data-testid="unlike"]) { --tint: 249 24 128; }
+.xnote-cover-actions [data-tip]:hover * { color: rgb(var(--tint)) !important; }
+.xnote-cover-actions [data-tip]:hover svg { border-radius: 50%; background: rgb(var(--tint) / 0.1); box-shadow: 0 0 0 8px rgb(var(--tint) / 0.1); }
+.xnote-cover-actions [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(50% + 14px); /* just below the icon, where X shows it */
+  left: 50%;
+  translate: -50% 0;
+  padding: 2px 4px;
+  border-radius: 2px;
+  background: rgb(91 112 131 / 0.8);
+  color: #fff;
+  font: 11px/12px TwitterChirp, -apple-system, system-ui, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+.xnote-cover-actions [data-tip]:hover::after { opacity: 1; transition: opacity 0.1s 0.4s; }
 html.xnote-sheet [data-testid="sidebarColumn"] { display: none !important; }
 html.xnote-sheet header[role="banner"] { position: fixed !important; visibility: hidden; }
 html.xnote-sheet main[role="main"] { flex-grow: 1 !important; align-items: stretch !important; }
@@ -162,6 +188,11 @@ export function installOverlay(store: Store) {
       sheet.actions = actions
       sheet.actionsHtml = actions.outerHTML
       bar.replaceChildren(copyOf(actions))
+      // The name of a button is the last sentence of its label: "12 Likes. Like" -> "Like".
+      for (const button of bar.querySelectorAll(`:is(${BUTTONS})[aria-label]`)) {
+        const name = button.getAttribute('aria-label')!.split(/[。.]\s*/).filter(Boolean).pop()
+        if (name) button.setAttribute('data-tip', name)
+      }
     }
   }
 
