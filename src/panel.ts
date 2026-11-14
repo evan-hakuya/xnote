@@ -15,6 +15,7 @@ const switches: { key: KeysOf<boolean>; hint?: MessageKey }[] = [
   { key: 'masonryProfile' },
   { key: 'masonrySearch' },
   { key: 'detailOverlay' },
+  { key: 'hoverPlay' },
 ]
 const numbers: { key: KeysOf<number>; min: number; max: number }[] = [
   { key: 'cardMinWidth', min: 160, max: 800 },

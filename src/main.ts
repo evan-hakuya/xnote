@@ -1,3 +1,4 @@
+import { installHoverPlay } from './hoverplay.ts'
 import { installPanel } from './panel.ts'
 import { installMasonry } from './masonry.ts'
 import { installOverlay } from './overlay.ts'
@@ -10,4 +11,5 @@ store.subscribe((values) => document.documentElement.classList.toggle('xnote-on'
 
 const masonry = installMasonry(store)
 installOverlay(store)
+installHoverPlay(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null))
