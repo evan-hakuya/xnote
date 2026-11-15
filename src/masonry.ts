@@ -24,11 +24,14 @@ html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid) {
   width: 100% !important;
   max-width: none !important;
 }
-/* A profile's banner and avatar scale with their width, so the profile header keeps X's width. */
-html.xnote-profile [data-testid="primaryColumn"] :has(.xnote-grid) > :not(.xnote-grid, :has(.xnote-grid)) {
-  width: 100%;
-  max-width: 600px;
-  margin-inline: auto;
+/* A profile's banner and avatar scale with their width: keep the sizes they have at X's 600px. */
+html.xnote-profile [data-testid="primaryColumn"] :has(.xnote-grid) > :not(.xnote-grid, :has(.xnote-grid)) div[style^="padding-bottom: 33.3"] {
+  padding-bottom: 0 !important;
+  height: 200px;
+}
+html.xnote-profile [data-testid="primaryColumn"] div:has(> div > div > div > div > a[href$="/photo"]) {
+  width: 142px !important;
+  margin-top: -85px !important;
 }
 .xnote-grid {
   display: grid !important;

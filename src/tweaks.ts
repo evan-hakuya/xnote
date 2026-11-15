@@ -45,6 +45,7 @@ const rules: Partial<Record<Switch, string>> = {
     'div[data-testid="GrokDrawer"]',
     'button[aria-label^="Grok "]', // "Grok actions" on a post, in every language
     'button[data-testid="grokImgGen"]',
+    'button:has(path[d^="M12.745 20.54l10.97-8.19"])', // any button with the Grok mark, such as the one on a profile
     '[data-testid="tweet"] [data-testid^="followups_"]',
     '[data-testid="tweet"] [data-testid^="followups_"] + nav',
     '[data-testid="tweet"] a[href="/i/grok"]',
