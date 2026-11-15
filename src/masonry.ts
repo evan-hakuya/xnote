@@ -45,6 +45,10 @@ html.xnote-profile [data-testid="primaryColumn"] div:has(> div > div > div > div
   padding: var(--xnote-gap);
 }
 .xnote-grid > * { position: static !important; transform: none !important; top: auto !important; min-width: 0; }
+/* X builds the feed again when the user comes back to it. Posts that have no place yet would
+   show in one column, then in a heap, then in their places: keep them unseen until then. */
+html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellInnerDiv"]):not(:has(.xnote-grid)),
+.xnote-grid > :not([style*="grid-area"]) { visibility: hidden; }
 .xnote-grid > .xnote-card { border: 1px solid rgb(128 128 128 / 0.28); border-radius: 16px; overflow: hidden; }
 /* The posts of a thread are one card: X draws a line from one avatar to the next. */
 .xnote-grid > .xnote-joined { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
