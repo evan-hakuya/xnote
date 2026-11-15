@@ -48,3 +48,16 @@ test('an empty item takes one row and zero columns falls back to one', () => {
     { column: 1, row: 2, span: 4 },
   ])
 })
+
+test('the next post of a thread goes below the post before it, with no gap', () => {
+  const joined = { height: 10, full: false, joined: true, column: 1 }
+  // unit 10, gap 10. Column 2 is the shortest and the joined card has a pin for column 1.
+  assert.deepEqual(placeCards([card(30), card(10), joined, card(10)], 2, 10, 10), [
+    { column: 1, row: 1, span: 4 },
+    { column: 2, row: 1, span: 1 },
+    { column: 2, row: 2, span: 2 },
+    { column: 2, row: 4, span: 2 },
+  ])
+  // Nothing to join after a full-width item.
+  assert.equal(placeCards([{ height: 10, full: true }, { ...joined, column: undefined }], 2, 10, 0)[1]!.column, 1)
+})

@@ -1,5 +1,6 @@
 import { columnsFor, placeCards } from './layout.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
+import { fibers } from './react.ts'
 import { feedKind, type FeedKind } from './route.ts'
 import type { Settings, Store } from './settings.ts'
 
@@ -45,6 +46,9 @@ html.xnote-profile [data-testid="primaryColumn"] div:has(> div > div > div > div
 }
 .xnote-grid > * { position: static !important; transform: none !important; top: auto !important; min-width: 0; }
 .xnote-grid > .xnote-card { border: 1px solid rgb(128 128 128 / 0.28); border-radius: 16px; overflow: hidden; }
+/* The posts of a thread are one card: X draws a line from one avatar to the next. */
+.xnote-grid > .xnote-joined { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.xnote-grid > .xnote-card:has(+ .xnote-joined) { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 /* Promoted posts, and the "Who to follow" module with its heading and "Show more" link. */
 .xnote-grid > :has([data-testid="placementTracking"] article),
 .xnote-grid > :has([data-testid="UserCell"]),
@@ -87,6 +91,16 @@ export function installMasonry(store: Store) {
   const pins = new Map<string, number>()
   let pinnedColumns = 0
   let restore: { top: number; until: number } | undefined
+  // Whether a cell is a later post of a thread, from X's data of the timeline entry (private, checked).
+  const later = new WeakMap<HTMLElement, boolean>()
+  const isLater = (cell: HTMLElement) => {
+    if (!later.has(cell)) {
+      const entry = fibers(cell).map((fiber) => fiber.memoizedProps?.item?.data).find(Boolean)
+      if (!entry) return false // X has not filled the cell yet
+      later.set(cell, entry.conversationPosition?.isStart === false)
+    }
+    return later.get(cell)!
+  }
 
   // X only renders the posts near the viewport and positions them for one column. In a grid
   // that removes posts the user still sees, so every loaded post stays rendered.
@@ -134,13 +148,21 @@ export function installMasonry(store: Store) {
       const post = cell.querySelector('time')?.closest('a')?.getAttribute('href')
       return post ? `${feedKey}|${post}` : undefined
     })
-    const items = cells.map((cell, index) => ({
-      height: cell.offsetHeight,
-      full: !cell.classList.contains('xnote-card'),
-      column: keys[index] ? pins.get(keys[index]) : undefined,
-    }))
-    placeCards(items, columns, UNIT, gap).forEach(({ column, row, span }, index) => {
+    const items = cells.map((cell, index) => {
+      const full = !cell.classList.contains('xnote-card')
+      // Only when the post before it is shown, and is the card directly above.
+      const before = cells[index - 1]
+      const joined = !full && before === cell.previousElementSibling && before?.classList.contains('xnote-card') === true && isLater(cell)
+      cell.classList.toggle('xnote-joined', joined)
+      return { height: cell.offsetHeight, full, joined, column: keys[index] ? pins.get(keys[index]) : undefined }
+    })
+    const placed = placeCards(items, columns, UNIT, gap)
+    let shift = 0
+    placed.forEach(({ column, row, span }, index) => {
       cells[index]!.style.gridArea = column ? `${row} / ${column} / span ${span} / span 1` : `${row} / 1 / span ${span} / -1`
+      // A card can end a few px before its last row, and the card above was moved up as well.
+      shift = items[index]!.joined ? shift + items[index - 1]!.height - placed[index - 1]!.span * UNIT : 0
+      cells[index]!.style.marginTop = shift ? `${shift}px` : ''
       if (column && keys[index]) pins.set(keys[index], column)
     })
     if (restore) {
@@ -181,8 +203,9 @@ export function installMasonry(store: Store) {
     if (container) {
       container.classList.remove('xnote-grid')
       for (const cell of container.children as HTMLCollectionOf<HTMLElement>) {
-        cell.classList.remove('xnote-card')
+        cell.classList.remove('xnote-card', 'xnote-joined')
         cell.style.gridArea = ''
+        cell.style.marginTop = ''
       }
       container.style.gridTemplateColumns = ''
     }
