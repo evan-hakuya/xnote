@@ -14,9 +14,11 @@ const switchFor = {
 
 const CSS = `
 html.xnote-masonry [data-testid="sidebarColumn"] { display: none !important; }
-/* X centres the page by letting the navigation grow; give that space to the feed instead. */
-html.xnote-masonry header[role="banner"] { flex-grow: 0 !important; }
-html.xnote-masonry main[role="main"] { flex-grow: 1 !important; }
+/* X centres the page by letting the navigation grow; give that space to the feed instead.
+   On every page, so the navigation does not move between a feed and the other pages: there
+   the content is centred in the space, which is where X has it. */
+html.xnote-left header[role="banner"] { flex-grow: 0 !important; }
+html.xnote-left main[role="main"] { flex-grow: 1 !important; align-items: center; }
 html.xnote-masonry main[role="main"] > div,
 html.xnote-masonry main[role="main"] > div > div,
 html.xnote-masonry main[role="main"] > div > div > div,
@@ -221,9 +223,10 @@ export function installMasonry(store: Store) {
 
   const sync = () => {
     const kind = feedKind(location.pathname)
-    if (kind === 'keep') return
     const values = store.get()
     const root = document.documentElement
+    root.classList.toggle('xnote-left', values.enabled && !broken && Object.values(switchFor).some((key) => values[key]))
+    if (kind === 'keep') return
     root.style.setProperty('--xnote-gap', `${values.cardGap}px`)
     const wanted = values.enabled && !broken && kind !== null && values[switchFor[kind]]
     root.classList.toggle('xnote-masonry', wanted)
