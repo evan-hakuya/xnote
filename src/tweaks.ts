@@ -4,7 +4,8 @@ import type { Settings, Store } from './settings.ts'
 
 // The general switches. Selectors and feature names follow Control Panel for Twitter
 // (MIT, Jonny Buchanan), rewritten to work without the page marks that its script adds.
-const NAV = 'header[role="banner"] nav'
+// Also the still copy of the navigation that overlay.ts puts behind a popup.
+const NAV = ':is(header[role="banner"], header.xnote-snapshot) nav'
 const MENU = '[role="menu"]'
 const hide = (...selectors: string[]) => `${selectors.join(',\n')} { display: none !important; }`
 const navItem = (link: string) => hide(`${NAV} ${link}`, `${MENU} ${link}`)
