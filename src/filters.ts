@@ -29,8 +29,15 @@ const WORDS: Record<Lang, [RegExp, string][]> = {
   ],
 }
 
+// Wording that changes as a whole: the old word is not the new word with one part replaced.
+const WHOLE: Record<Lang, Record<string, string>> = {
+  'zh-Hans': { 引用: '引用推文', 帖子活动: '推文互动', 'X 上的直播': 'Twitter 上的直播' },
+  'zh-Hant': { 引用: '引用推文', 'X 上的直播': 'Twitter 上的直播' },
+  en: { Quote: 'Quote Tweet', Quotes: 'Quote Tweets', 'Post engagements': 'Tweet interactions', 'Live on X': 'Live on Twitter' },
+}
+
 export function classicWords(text: string, lang: Lang) {
-  return WORDS[lang].reduce((result, [from, to]) => result.replace(from, to), text)
+  return WHOLE[lang][text.trim()] ?? WORDS[lang].reduce((result, [from, to]) => result.replace(from, to), text)
 }
 
 // Where X's own wording is. Never the text of posts, names or anything else a person wrote:
@@ -46,6 +53,9 @@ const WORDING = [
   '[data-testid="pillLabel"]',
   '[data-testid="cellInnerDiv"]:not(:has(article)) [role="button"]',
   '#layers [role="menuitem"]',
+  '[data-testid="HoverLabel"]',
+  '.public-DraftEditorPlaceholder-inner',
+  '[data-testid="sidebarColumn"] h2',
 ].join(',')
 
 export function installFilters(store: Store) {
@@ -82,7 +92,7 @@ export function installFilters(store: Store) {
     const lang = pickLang(document.documentElement.lang)
     for (const element of document.querySelectorAll(WORDING)) {
       const whole = element.textContent?.trim() ?? ''
-      if (element.matches(TITLE) && !WORDS[lang].some(([from]) => whole.replace(from, '') === '')) continue
+      if (element.matches(TITLE) && !(whole in WHOLE[lang]) && !WORDS[lang].some(([from]) => whole.replace(from, '') === '')) continue
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         const text = classicWords(node.nodeValue ?? '', lang)
