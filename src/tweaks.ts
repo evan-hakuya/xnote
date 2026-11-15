@@ -92,7 +92,13 @@ svg path[d="${X_HOME[1]}"] { d: path("${BIRD_HOME[1]}"); }
 [data-testid="SideNav_NewTweet_Button"] path[clip-rule="evenodd"] { display: none; }
 ${POST} { background-color: rgb(${BLUE}) !important; }
 ${POST}:hover:not(:disabled) { background-color: rgb(${BLUE} / 0.8) !important; }
-${POST} > div, ${POST} > div > svg { color: #fff !important; }`,
+${POST} > div, ${POST} > div > svg { color: #fff !important; }
+/* The Follow buttons had the accent colour too. "html" makes these win over monochromeFollow. */
+html ${FOLLOWING} { border-color: transparent !important; background-color: rgb(${BLUE}) !important; }
+html ${FOLLOWING} > :is(div, span), html ${FOLLOW}:hover > :is(div, span) { color: #fff !important; }
+html ${FOLLOW} { border-color: rgb(${BLUE}) !important; background-color: transparent !important; }
+html ${FOLLOW} > :is(div, span) { color: rgb(${BLUE}) !important; }
+html ${FOLLOW}:hover { background-color: rgb(${BLUE}) !important; }`,
   // A gold tick (an organisation) has a gradient; every other tick here is taken as paid.
   premiumCheck: `svg[data-testid="icon-verified"]:not(:has(linearGradient)) path { d: path("${PAID_TICK}"); }`,
   hideRetweets: marked('retweet'),
