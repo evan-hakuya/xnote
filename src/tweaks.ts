@@ -48,6 +48,8 @@ const rules: Partial<Record<Switch, string>> = {
     '[data-testid="tweet"] [data-testid^="followups_"]',
     '[data-testid="tweet"] [data-testid^="followups_"] + nav',
     '[data-testid="tweet"] a[href="/i/grok"]',
+    // "Profile Summary" at the end of the card of a person. It has no name of its own to match.
+    '[data-testid="HoverCard"] > div > div > div:last-child:has(> button)',
   ),
   hidePremiumNav: navItem('a[href^="/i/premium_sign_up"]'),
   hideConnectNav: navItem('a:is([href$="/i/connect_people"], [href$="/i/follow_people"])'),
