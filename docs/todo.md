@@ -24,7 +24,7 @@ Control Panel for Twitter 里在所有者的配置中生效、但是 xnote 决�
 
 - 隐藏关注者列表里的「认证」标签页（`hideVerifiedNotificationsTab`）。
 - 隐藏订阅相关的入口（`hideSubscriptions`）。
-- 隐藏「编辑图片」（`hideEditImage`）。
+- 隐藏「编辑图片」的其余部分（`hideEditImage`）：个人资料设置页里的入口。图片上、菜单里、媒体查看器里的入口已由「隐藏 Grok」隐藏。
 - 隐藏搜索页的推荐内容（`hideSuggestedContentSearch`）。
 - 查看引用时隐藏被引用的帖子（`tweakQuoteTweetsPage`）。
 - Premium 推销里必须用脚本标记的部分（`hideTwitterBlueUpsells` 的其余规则）。
