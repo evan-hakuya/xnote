@@ -20,12 +20,15 @@ html.xnote-masonry main[role="main"] > div,
 html.xnote-masonry main[role="main"] > div > div,
 html.xnote-masonry main[role="main"] > div > div > div,
 html.xnote-masonry [data-testid="primaryColumn"],
-html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid) {
+html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid),
+/* X's class for "600px at most". It is wide before the posts arrive, so the page does not jump.
+   shortcut: a generated class name; when X renames it the page is narrow until the posts arrive. */
+html.xnote-masonry [data-testid="primaryColumn"] .r-1ye8kvj:not([data-testid="cellInnerDiv"] *) {
   width: 100% !important;
   max-width: none !important;
 }
 /* A profile's banner and avatar scale with their width: keep the sizes they have at X's 600px. */
-html.xnote-profile [data-testid="primaryColumn"] :has(.xnote-grid) > :not(.xnote-grid, :has(.xnote-grid)) div[style^="padding-bottom: 33.3"] {
+html.xnote-profile [data-testid="primaryColumn"] div[style^="padding-bottom: 33.3"]:not([data-testid="cellInnerDiv"] *) {
   padding-bottom: 0 !important;
   height: 200px;
 }
