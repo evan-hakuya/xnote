@@ -14,8 +14,13 @@ const switchFor = {
 
 const CSS = `
 html.xnote-masonry [data-testid="sidebarColumn"] { display: none !important; }
-/* The feed takes the width that X gives to the timeline and the sidebar together, and no more:
-   the navigation and the page stay where X has them on every other page. */
+/* By default the feed takes the width that X gives to the timeline and the sidebar together.
+   With a set page margin the navigation sits that far from the left on every page, the feed
+   fills the rest up to the same margin on the right, and other pages centre their content. */
+html.xnote-margin div:has(> header[role="banner"]) { padding-inline: var(--xnote-margin) !important; box-sizing: border-box; }
+html.xnote-margin header[role="banner"] { flex-grow: 0 !important; }
+html.xnote-margin main[role="main"] { flex-grow: 1 !important; align-items: center !important; }
+html.xnote-margin.xnote-masonry main[role="main"] > div,
 html.xnote-masonry main[role="main"] > div > div,
 html.xnote-masonry main[role="main"] > div > div > div,
 html.xnote-masonry [data-testid="primaryColumn"],
@@ -221,6 +226,8 @@ export function installMasonry(store: Store) {
     const kind = feedKind(location.pathname)
     const values = store.get()
     const root = document.documentElement
+    root.style.setProperty('--xnote-margin', `${Math.max(0, values.pageMargin)}px`)
+    root.classList.toggle('xnote-margin', values.enabled && values.pageMargin >= 0)
     if (kind === 'keep') return
     root.style.setProperty('--xnote-gap', `${values.cardGap}px`)
     const wanted = values.enabled && !broken && kind !== null && values[switchFor[kind]]

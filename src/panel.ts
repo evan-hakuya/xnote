@@ -22,6 +22,7 @@ const groups: Group[] = [
     numbers: [
       { key: 'cardMinWidth', min: 160, max: 800 },
       { key: 'cardGap', min: 0, max: 48 },
+      { key: 'pageMargin', min: -1, max: 1000 },
     ],
   },
   {

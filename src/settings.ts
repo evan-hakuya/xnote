@@ -7,6 +7,7 @@ export const defaults = {
   hoverPlay: false,
   cardMinWidth: 280,
   cardGap: 12,
+  pageMargin: -1, // px of blank space left and right of the page; -1 keeps X's own
   // General switches. The defaults are the values the owner had in Control Panel for Twitter.
   hideGrok: true,
   hidePremiumNav: true,
