@@ -55,6 +55,17 @@ html.xnote-profile [data-testid="primaryColumn"] div:has(> div > div > div > div
 html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellInnerDiv"]):not(:has(.xnote-grid)),
 .xnote-grid > :not([style*="grid-area"]) { visibility: hidden; }
 .xnote-grid > .xnote-card { border: 1px solid rgb(128 128 128 / 0.28); border-radius: 16px; overflow: hidden; }
+/* X gives every action under a post the same width, so in a narrow card a long count runs into
+   the next icon. Size them by their content instead, and as the card gets narrower drop the
+   numbers that matter least: first the views, then the reposts. The icons always stay. */
+.xnote-grid article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) { container-type: inline-size; }
+.xnote-grid article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) > div:not(:last-child) { flex: 1 0 auto !important; }
+@container (width < 240px) {
+  .xnote-grid article [role="group"] a[href$="/analytics"] [data-testid="app-text-transition-container"] { display: none; }
+}
+@container (width < 220px) {
+  .xnote-grid article [role="group"] :is([data-testid="retweet"], [data-testid="unretweet"]) [data-testid="app-text-transition-container"] { display: none; }
+}
 /* The posts of a thread are one card: X draws a line from one avatar to the next. */
 .xnote-grid > .xnote-joined { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .xnote-grid > .xnote-card:has(+ .xnote-joined) { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
