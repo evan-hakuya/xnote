@@ -6,6 +6,7 @@ const ENTRY_ID = 'xnote-entry'
 const MORE_BUTTON = 'header[role="banner"] nav [data-testid="AppTabBar_More_Menu"]'
 const ICON =
   'M3 6h9v2H3V6zm13 0h5v2h-5V6zM3 16h3v2H3v-2zm7 0h11v2H10v-2zM12 4h2v6h-2V4zM6 14h2v6H6v-6z'
+const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
 
 type KeysOf<T> = { [K in keyof Settings]: Settings[K] extends T ? K : never }[keyof Settings]
 
@@ -88,7 +89,8 @@ const CSS = `
 #xnote-panel h2 { margin: 0; font-size: 20px; line-height: 24px; }
 #xnote-panel header label { margin-left: auto; padding: 0; gap: 10px; }
 #xnote-panel button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
-#xnote-panel .xnote-close { width: 36px; height: 36px; border-radius: 9999px; font-size: 24px; line-height: 1; }
+#xnote-panel .xnote-close { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 9999px; }
+#xnote-panel .xnote-close svg { width: 20px; height: 20px; fill: currentColor; }
 #xnote-panel nav { padding: 8px; border-right: 1px solid rgb(128 128 128 / 0.2); overflow-y: auto; }
 #xnote-panel nav button { display: block; width: 100%; padding: 10px 16px; border-radius: 9999px; text-align: left; }
 #xnote-panel :is(nav button, .xnote-close):hover { background: color-mix(in srgb, currentColor 10%, transparent); }
@@ -153,7 +155,9 @@ function createPanel(store: Store, notice: HTMLElement) {
 
   // The master switch stays in sight whichever category is open.
   const header = el('header')
-  const close = el('button', '×')
+  // X's own close icon: the "×" character sits off centre in most fonts.
+  const close = el('button')
+  close.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CLOSE_ICON}"/></svg>`
   close.className = 'xnote-close'
   close.setAttribute('aria-label', t('close'))
   close.addEventListener('click', () => dialog.close())
