@@ -9,42 +9,58 @@ const ICON =
 
 type KeysOf<T> = { [K in keyof Settings]: Settings[K] extends T ? K : never }[keyof Settings]
 
-type Group = {
-  title: MessageKey
-  switches: KeysOf<boolean>[]
-  numbers?: { key: KeysOf<number>; min: number; max: number }[]
-  texts?: KeysOf<string>[]
-}
-const groups: Group[] = [
+// The settings by what they change on X: a category on the left, its sections on the right.
+type Section = { title?: MessageKey; keys: Exclude<keyof Settings, 'enabled'>[] }
+const categories: { title: MessageKey; sections: Section[] }[] = [
   {
-    title: 'groupFeed',
-    switches: ['enabled', 'masonryHome', 'masonryProfile', 'masonrySearch', 'wideLayout', 'detailOverlay', 'hoverPlay'],
-    numbers: [
-      { key: 'cardMinWidth', min: 160, max: 800 },
-      { key: 'cardGap', min: 0, max: 48 },
+    title: 'catLayout',
+    sections: [
+      { title: 'subMasonry', keys: ['masonryHome', 'masonryProfile', 'masonrySearch'] },
+      { title: 'subSize', keys: ['wideLayout', 'cardMinWidth', 'cardGap'] },
     ],
   },
   {
-    title: 'groupFilter',
-    switches: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts', 'hideUnavailableQuotes'],
-    texts: ['mutedQuotes'],
-  },
-  {
-    title: 'groupNav',
-    switches: ['hideGrok', 'hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav'],
-  },
-  {
-    title: 'groupPage',
-    switches: [
-      'hideChatDrawer', 'hideViews', 'hideReplyButton', 'hideRetweetButton', 'hideLikeButton', 'hideBookmarkButton',
-      'hideShareButton', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent', 'hideExplore',
+    title: 'catView',
+    sections: [
+      { title: 'subPopup', keys: ['detailOverlay'] },
+      { title: 'subMedia', keys: ['hoverPlay', 'mediaGrid'] },
     ],
   },
   {
-    title: 'groupStyle',
-    switches: ['birdLogo', 'premiumCheck', 'mediaGrid', 'navNormalFont', 'menuNormalFont', 'monochromeFollow', 'twemoji', 'bypassAge', 'disableNfl'],
+    title: 'catTimeline',
+    sections: [
+      { title: 'subEntries', keys: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts'] },
+      { title: 'subQuotes', keys: ['hideUnavailableQuotes', 'mutedQuotes'] },
+    ],
   },
+  {
+    title: 'catPost',
+    sections: [
+      { title: 'subActions', keys: ['hideReplyButton', 'hideRetweetButton', 'hideLikeButton', 'hideViews', 'hideBookmarkButton', 'hideShareButton'] },
+      { title: 'subPostMenu', keys: ['hideViewActivity'] },
+    ],
+  },
+  {
+    title: 'catNav',
+    sections: [
+      {
+        title: 'subNavItems',
+        keys: ['hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav'],
+      },
+      { title: 'subPageParts', keys: ['hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
+    ],
+  },
+  { title: 'catPromo', sections: [{ keys: ['hideGrok', 'hideUpsells'] }] },
+  {
+    title: 'catLook',
+    sections: [
+      { title: 'subClassic', keys: ['birdLogo', 'monochromeFollow', 'premiumCheck'] },
+      { title: 'subText', keys: ['navNormalFont', 'menuNormalFont', 'twemoji'] },
+    ],
+  },
+  { title: 'catOther', sections: [{ title: 'subFeatures', keys: ['bypassAge', 'disableNfl'] }] },
 ]
+const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48] }
 // A line of explanation below the name of a switch.
 const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
   enabled: 'enabledHint',
@@ -55,30 +71,76 @@ const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
 
 const CSS = `
 #xnote-panel {
-  width: min(420px, calc(100vw - 32px));
-  padding: 16px 20px 20px;
+  width: min(880px, calc(100vw - 64px));
+  height: min(640px, 88vh);
+  padding: 0;
   border: 1px solid rgb(128 128 128 / 0.3);
   border-radius: 16px;
   font: 15px/20px TwitterChirp, -apple-system, system-ui, sans-serif;
+  overflow: hidden;
 }
+#xnote-panel[open] { display: grid; grid-template: auto 1fr / 200px 1fr; }
 #xnote-panel::backdrop { background: rgb(0 0 0 / 0.4); }
-#xnote-panel header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+#xnote-panel header {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px 12px 24px; border-bottom: 1px solid rgb(128 128 128 / 0.2);
+}
 #xnote-panel h2 { margin: 0; font-size: 20px; line-height: 24px; }
-#xnote-panel h3 { margin: 16px 0 4px; font-size: 13px; line-height: 16px; opacity: 0.6; }
-#xnote-panel button { border: 0; background: none; color: inherit; font-size: 24px; line-height: 1; cursor: pointer; }
-#xnote-panel label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; cursor: pointer; }
+#xnote-panel header label { margin-left: auto; padding: 0; gap: 10px; }
+#xnote-panel button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+#xnote-panel .xnote-close { width: 36px; height: 36px; border-radius: 9999px; font-size: 24px; line-height: 1; }
+#xnote-panel nav { padding: 8px; border-right: 1px solid rgb(128 128 128 / 0.2); overflow-y: auto; }
+#xnote-panel nav button { display: block; width: 100%; padding: 10px 16px; border-radius: 9999px; text-align: left; }
+#xnote-panel :is(nav button, .xnote-close):hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+#xnote-panel nav button[aria-current="true"] { font-weight: 700; background: color-mix(in srgb, currentColor 10%, transparent); }
+#xnote-panel main { padding: 4px 24px 24px; overflow-y: auto; }
+#xnote-panel h3 { margin: 20px 0 4px; font-size: 13px; line-height: 16px; font-weight: 600; opacity: 0.6; }
+#xnote-panel section label { border-bottom: 1px solid rgb(128 128 128 / 0.15); }
+#xnote-panel section label:last-child { border-bottom: 0; }
+#xnote-panel label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; cursor: pointer; }
 #xnote-panel small { display: block; opacity: 0.6; font-size: 13px; }
 #xnote-panel input { flex: none; font: inherit; accent-color: rgb(29, 155, 240); }
 #xnote-panel input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
 #xnote-panel input[type="number"] { width: 80px; }
 #xnote-panel input[type="text"] { width: 180px; }
-#xnote-panel [role="status"] { margin: 0 0 8px; color: rgb(244, 33, 46); }
+#xnote-panel [role="status"] { margin: 16px 0 0; color: rgb(244, 33, 46); }
 `
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) {
   const node = document.createElement(tag)
   if (text !== undefined) node.textContent = text
   return node
+}
+
+/** One setting as a row: a switch, a number or a text field, by the type of its value. */
+function row(store: Store, key: keyof Settings) {
+  const label = el('label')
+  const text = el('span', t(key))
+  const input = el('input')
+  const value = store.get()[key]
+  if (typeof value === 'boolean') {
+    const hint = hints[key as KeysOf<boolean>]
+    if (hint) text.append(el('small', t(hint)))
+    input.type = 'checkbox'
+    input.setAttribute('role', 'switch')
+    input.checked = value
+    input.addEventListener('change', () => store.set(key as KeysOf<boolean>, input.checked))
+  } else if (typeof value === 'number') {
+    const [min, max] = limits[key as KeysOf<number>]
+    input.type = 'number'
+    input.min = String(min)
+    input.max = String(max)
+    input.valueAsNumber = value
+    // Out-of-range and empty input is ignored until it becomes valid.
+    input.addEventListener('input', () => input.validity.valid && input.value && store.set(key as KeysOf<number>, input.valueAsNumber))
+  } else {
+    text.append(el('small', t('namesHint')))
+    input.type = 'text'
+    input.value = value
+    input.addEventListener('input', () => store.set(key as KeysOf<string>, input.value))
+  }
+  label.append(text, input)
+  return label
 }
 
 function createPanel(store: Store, notice: HTMLElement) {
@@ -89,56 +151,41 @@ function createPanel(store: Store, notice: HTMLElement) {
   // A click on the backdrop lands on the dialog element itself.
   dialog.addEventListener('click', (event) => event.target === dialog && dialog.close())
 
+  // The master switch stays in sight whichever category is open.
   const header = el('header')
   const close = el('button', '×')
+  close.className = 'xnote-close'
   close.setAttribute('aria-label', t('close'))
   close.addEventListener('click', () => dialog.close())
-  header.append(el('h2', t('settings')), close)
-  dialog.append(header, notice)
+  header.append(el('h2', t('settings')), row(store, 'enabled'), close)
 
-  for (const group of groups) {
-    dialog.append(el('h3', t(group.title)))
-
-    for (const key of group.switches) {
-      const row = el('label')
-      const text = el('span', t(key))
-      const hint = hints[key]
-      if (hint) text.append(el('small', t(hint)))
-      const input = el('input')
-      input.type = 'checkbox'
-      input.setAttribute('role', 'switch')
-      input.checked = store.get()[key]
-      input.addEventListener('change', () => store.set(key, input.checked))
-      row.append(text, input)
-      dialog.append(row)
+  const nav = el('nav')
+  const main = el('main')
+  main.append(notice)
+  const pages = categories.map(({ title, sections }, index) => {
+    const page = el('div')
+    for (const section of sections) {
+      if (section.title) page.append(el('h3', t(section.title)))
+      const box = el('section')
+      box.append(...section.keys.map((key) => row(store, key)))
+      page.append(box)
     }
-
-    for (const { key, min, max } of group.numbers ?? []) {
-      const row = el('label')
-      const input = el('input')
-      input.type = 'number'
-      input.min = String(min)
-      input.max = String(max)
-      input.valueAsNumber = store.get()[key]
-      // Out-of-range and empty input is ignored until it becomes valid.
-      input.addEventListener('input', () => input.validity.valid && input.value && store.set(key, input.valueAsNumber))
-      row.append(el('span', t(key)), input)
-      dialog.append(row)
-    }
-
-    for (const key of group.texts ?? []) {
-      const row = el('label')
-      const input = el('input')
-      input.type = 'text'
-      input.value = store.get()[key]
-      input.addEventListener('input', () => store.set(key, input.value))
-      const text = el('span', t(key))
-      text.append(el('small', t('namesHint')))
-      row.append(text, input)
-      dialog.append(row)
-    }
+    const tab = el('button', t(title))
+    tab.addEventListener('click', () => show(index))
+    nav.append(tab)
+    main.append(page)
+    return { tab, page }
+  })
+  const show = (index: number) => {
+    pages.forEach(({ tab, page }, other) => {
+      tab.setAttribute('aria-current', String(other === index))
+      page.hidden = other !== index
+    })
+    main.scrollTop = 0
   }
+  show(0)
 
+  dialog.append(header, nav, main)
   document.body.append(dialog)
   return dialog
 }
