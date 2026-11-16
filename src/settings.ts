@@ -5,6 +5,9 @@ export const defaults = {
   masonrySearch: true,
   detailOverlay: true,
   hoverPlay: false,
+  resumeForYou: false,
+  resumeFollowing: false,
+  resumeLists: false,
   cardMinWidth: 380, // the action bar of nearly every post fits at this width without dropping a count
   cardGap: 12,
   wideLayout: false,

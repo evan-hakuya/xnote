@@ -25,6 +25,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     sections: [
       { title: 'subPopup', keys: ['detailOverlay'] },
       { title: 'subMedia', keys: ['hoverPlay', 'mediaGrid'] },
+      { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
     ],
   },
   {
