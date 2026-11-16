@@ -30,10 +30,16 @@ test('keeps the posts that X loaded and answers with them, newest cursors first 
 
   // Newer posts, by the top cursor, wait behind X's pill until the user opens it.
   assert.ok(addAnswer(saved, 't1', answer(cursor('Top', 't2'), post('11'), post('10')), 3))
+  // X asks again from its own last answer before the user opens the pill: both answers wait.
+  assert.ok(addAnswer(saved, 't2', answer(cursor('Top', 't3'), post('12')), 3))
   assert.equal(ids(answerFrom(saved))[0], 'cursor-top-t1')
   assert.ok(commit(saved, 4))
-  assert.deepEqual(ids(answerFrom(saved)).slice(0, 3), ['cursor-top-t2', 'tweet-11', 'tweet-10'])
+  assert.deepEqual(ids(answerFrom(saved)).slice(0, 4), ['cursor-top-t3', 'tweet-12', 'tweet-11', 'tweet-10'])
   assert.equal(commit(saved, 5), false)
+  // A newer answer can bring back a post the copy has: X shows it at the top, so does the copy.
+  assert.ok(addAnswer(saved, 't3', answer(cursor('Top', 't4'), post('13'), post('8')), 6))
+  assert.ok(commit(saved, 7))
+  assert.deepEqual(ids(answerFrom(saved)), ['cursor-top-t4', 'tweet-13', 'tweet-8', 'tweet-12', 'tweet-11', 'tweet-10', 'tweet-9', 'tweet-7', 'cursor-bottom-b2'])
 })
 
 test('counts the posts of a copy, each post of a conversation too', () => {

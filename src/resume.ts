@@ -92,7 +92,12 @@ export function addAnswer(saved: Saved, cursor: string | undefined, json: any, n
     if (saved.entries.length < MAX_ENTRIES) saved.entries.push(...without(entries, saved.entries))
     saved.bottom = bottom ?? saved.bottom
   } else if (cursor && cursor === cursorOf(saved.top)) {
-    saved.pending = { entries: without(entries, saved.entries), top }
+    // Every post of the answer, also one the copy has: X moves such a post to the top.
+    saved.pending = { entries, top }
+  } else if (cursor && saved.pending && cursor === cursorOf(saved.pending.top)) {
+    // X asks again from its last answer, as when the user comes back to the top: its pill then
+    // counts the posts of both answers, and one click shows them all.
+    saved.pending = { entries: [...entries, ...without(saved.pending.entries, entries)], top: top ?? saved.pending.top }
   } else return false
   saved.savedAt = now
   return true
@@ -101,7 +106,7 @@ export function addAnswer(saved: Saved, cursor: string | undefined, json: any, n
 /** The user opened X's pill: the newer posts are on the page now. */
 export function commit(saved: Saved, now: number) {
   if (!saved.pending) return false
-  saved.entries.unshift(...saved.pending.entries)
+  saved.entries = [...saved.pending.entries, ...without(saved.entries, saved.pending.entries)]
   saved.top = saved.pending.top ?? saved.top
   saved.pending = undefined
   saved.savedAt = now
