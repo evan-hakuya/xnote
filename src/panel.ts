@@ -55,10 +55,13 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     sections: [
       {
         title: 'subNavItems',
+        // In the order X shows them: the navigation, then its "More" menu, then the xnote entry.
+        // Jobs and Money were not on the page to look at; they close the menu.
         keys: [
-          'hideExploreNav', 'hideNotificationsNav', 'hideMessagesNav', 'hideCallsNav', 'hideHistoryNav', 'hideProfileNav',
-          'hideListsNav', 'hideCommunitiesNav', 'hideSpacesNav',
-          'hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav',
+          'hideExploreNav', 'hideNotificationsNav', 'hideConnectNav', 'hideMessagesNav', 'hideCallsNav', 'hideHistoryNav',
+          'hidePremiumNav', 'hideProfileNav',
+          'hideListsNav', 'hideCommunitiesNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideSpacesNav',
+          'hideJobsNav', 'hideMoneyNav',
           'hideXnoteNav',
         ],
       },
