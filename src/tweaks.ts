@@ -7,6 +7,8 @@ import type { Settings, Store } from './settings.ts'
 // Also the still copy of the navigation that overlay.ts puts behind a popup.
 const NAV = ':is(header[role="banner"], header.xnote-snapshot) nav'
 const MENU = '[role="menu"]'
+// The row of buttons under a post.
+const ACTIONS = '[role="group"]:has([data-testid="like"], [data-testid="unlike"])'
 const hide = (...selectors: string[]) => `${selectors.join(',\n')} { display: none !important; }`
 const navItem = (link: string) => hide(`${NAV} ${link}`, `${MENU} ${link}`)
 
@@ -74,6 +76,12 @@ const rules: Partial<Record<Switch, string>> = {
     '[aria-modal="true"] > div > div:first-of-type [role="group"] > div:has(> a[href$="/analytics"])',
   ),
   hideViewActivity: hide(`${MENU} a[href$="/quotes"]`),
+  // The buttons under a post: in the feed, on a post's page, in the media viewer and in a popup.
+  hideReplyButton: hide(`${ACTIONS} > div:has(> [data-testid="reply"])`),
+  hideRetweetButton: hide(`${ACTIONS} > div:has(> :is([data-testid="retweet"], [data-testid="unretweet"]))`),
+  hideLikeButton: hide(`${ACTIONS} > div:has(> :is([data-testid="like"], [data-testid="unlike"]))`),
+  hideBookmarkButton: hide(`${ACTIONS} > div:has(> :is([data-testid="bookmark"], [data-testid="removeBookmark"]))`),
+  hideShareButton: hide(`${ACTIONS} > div:last-child:not(:has([data-testid]))`), // Share has no name of its own
   hideUpsells: hide(
     `${MENU} a[href="/i/account_analytics"]`,
     '[role="menuitem"][data-testid="highlightUpsell"]',

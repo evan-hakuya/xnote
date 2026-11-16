@@ -35,7 +35,10 @@ const groups: Group[] = [
   },
   {
     title: 'groupPage',
-    switches: ['hideChatDrawer', 'hideViews', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent', 'hideExplore'],
+    switches: [
+      'hideChatDrawer', 'hideViews', 'hideReplyButton', 'hideRetweetButton', 'hideLikeButton', 'hideBookmarkButton',
+      'hideShareButton', 'hideViewActivity', 'hideUpsells', 'hideSidebarContent', 'hideExplore',
+    ],
   },
   {
     title: 'groupStyle',
