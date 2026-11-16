@@ -1,3 +1,5 @@
+import { onPageChange } from './page.ts'
+import { fibers } from './react.ts'
 import type { Settings, Store } from './settings.ts'
 
 /**
@@ -190,6 +192,19 @@ export function installResume(store: Store) {
     if (document.documentElement.scrollHeight - innerHeight >= top && Math.abs(scrollY - top) > 2) scrollTo(0, top)
     requestAnimationFrame(keepPlace)
   }
+
+  // X asks for newer posts by itself only when the user comes back to the top, or on a timer that
+  // waits until its first answer is old. After the copy is on the page, run X's own poll once, so
+  // that its "Show 28 posts" line appears right away (ADR-0001: X makes the request).
+  let askNewer = false
+  onPageChange(() => {
+    if (!askNewer || location.pathname !== '/home') return
+    const cell = document.querySelector('[data-testid="primaryColumn"] section [data-testid="cellInnerDiv"]')
+    if (!cell?.parentElement) return
+    const timeline = fibers(cell.parentElement).map((fiber) => fiber.stateNode).find((node) => typeof node?._foregroundPollAction === 'function')
+    askNewer = false
+    if (timeline) setTimeout(() => timeline._foregroundPollAction(), 1000)
+  })
   for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) addEventListener(type, () => void (restore = undefined), { passive: true })
 
   // The posts of X's first answer after a page load, by timeline, until X asks for newer posts.
@@ -230,6 +245,7 @@ export function installResume(store: Store) {
         if (!saved) return null
         this.xnoteKept = true
         waiting.set(key, newIn(saved, json))
+        askNewer = true
         saved.pending = undefined
         if (saved.scroll > 0) {
           restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 10000 }
