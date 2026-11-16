@@ -1,10 +1,11 @@
 import type { Settings, Store } from './settings.ts'
 
 /**
- * Refresh keeps the timeline: xnote keeps a copy of what X loaded for a home timeline and, when
- * X asks for that timeline anew after a page load, answers from the copy (ADR-0003). X then asks
- * for newer posts from the copy's top cursor by itself, and shows them behind its own
- * "Show 28 posts" pill.
+ * Refresh keeps the timeline: xnote keeps a copy of what X loaded for a home timeline. After a
+ * page load X asks for that timeline anew as usual, but gets the copy in place of the answer
+ * (ADR-0003). The posts of the answer wait: when X asks for newer posts from the copy's top
+ * cursor, as it does by itself, they join X's answer, so X shows them behind its own
+ * "Show 28 posts" line.
  */
 
 type Switch = 'resumeForYou' | 'resumeFollowing' | 'resumeLists'
@@ -111,6 +112,21 @@ export function answerFrom(saved: Saved) {
   return JSON.stringify(json)
 }
 
+/** X's answer with newer posts, with `extra` posts added in front of its own. */
+export function withNewer(json: any, extra: Entry[]) {
+  const instructions = instructionsOf(json)
+  if (!instructions) return json
+  let add = instructions.find((instruction) => instruction.type === 'TimelineAddEntries')
+  if (!add) instructions.push((add = { type: 'TimelineAddEntries', entries: [] }))
+  add.entries.unshift(...without(extra, add.entries))
+  return json
+}
+
+/** The posts of X's first answer that the copy does not have yet. */
+export function newIn(saved: Saved, json: any) {
+  return without(parts(json).entries, saved.entries)
+}
+
 // IndexedDB, because a copy of a timeline is far larger than localStorage allows.
 const DB = 'xnote'
 const STORE = 'timelines'
@@ -128,7 +144,7 @@ export function installResume(store: Store) {
   const copies = new Map<string, Saved>()
   const db = database()
   // Only this account's copies that have not expired are loaded.
-  const loaded = db
+  void db
     .then(
       (base) =>
         new Promise<void>((resolve) => {
@@ -176,7 +192,14 @@ export function installResume(store: Store) {
   }
   for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) addEventListener(type, () => void (restore = undefined), { passive: true })
 
-  type Request = XMLHttpRequest & { xnoteUrl?: string; xnoteServed?: boolean }
+  // The posts of X's first answer after a page load, by timeline, until X asks for newer posts.
+  const waiting = new Map<string, Entry[]>()
+  const fresh = (key: string) => {
+    const saved = copies.get(key)
+    return saved && Date.now() - saved.savedAt < MAX_AGE ? saved : undefined
+  }
+
+  type Request = XMLHttpRequest & { xnoteUrl?: string; xnoteKept?: boolean }
   const proto = XMLHttpRequest.prototype
   const open = proto.open
   const send = proto.send
@@ -200,8 +223,30 @@ export function installResume(store: Store) {
     const first = variables?.requestContext === 'launch'
     const cursor = typeof variables?.cursor === 'string' ? variables.cursor : undefined
 
+    if (first && fresh(key)) {
+      // X gets the copy; the posts of its own answer wait for its next request for newer posts.
+      rewrite(this, (json) => {
+        const saved = fresh(key)
+        if (!saved) return null
+        this.xnoteKept = true
+        waiting.set(key, newIn(saved, json))
+        saved.pending = undefined
+        if (saved.scroll > 0) {
+          restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 10000 }
+          requestAnimationFrame(keepPlace)
+        }
+        return answerFrom(saved)
+      })
+    } else if (cursor && waiting.get(key)?.length && cursor === cursorOf(copies.get(key)?.top)) {
+      rewrite(this, (json) => {
+        const extra = waiting.get(key) ?? []
+        waiting.delete(key)
+        return JSON.stringify(withNewer(json, extra))
+      })
+    }
+
     this.addEventListener('load', () => {
-      if (this.xnoteServed || this.status !== 200) return
+      if (this.xnoteKept || this.status !== 200) return
       let json: any
       try {
         json = JSON.parse(this.responseText)
@@ -213,19 +258,7 @@ export function installResume(store: Store) {
       else if (!saved || !addAnswer(saved, cursor, json, Date.now())) return
       save(key)
     })
-
-    if (!first) return send.call(this, body)
-    void loaded.then(() => {
-      const saved = copies.get(key)
-      const text = saved && Date.now() - saved.savedAt < MAX_AGE ? answerFrom(saved) : null
-      if (!saved || !text) return send.call(this, body)
-      saved.pending = undefined // X asks for the newer posts again and shows them behind its pill
-      serve(this, text, url)
-      if (saved.scroll > 0) {
-        restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 10000 }
-        requestAnimationFrame(keepPlace)
-      }
-    })
+    return send.call(this, body)
   }
 
   document.addEventListener('click', (event) => {
@@ -280,19 +313,40 @@ export type ResumeSwitch = Switch
 const timelineToggle = (key: string): Switch =>
   key === 'forYou' ? 'resumeForYou' : key === 'following' ? 'resumeFollowing' : 'resumeLists'
 
-/** Completes a request of X without the network, as if the server had sent `text`. */
-function serve(xhr: XMLHttpRequest & { xnoteServed?: boolean }, text: string, url: string) {
-  const fixed = (name: string, value: unknown) => Object.defineProperty(xhr, name, { configurable: true, get: () => value })
-  xhr.xnoteServed = true
-  fixed('readyState', 4)
-  fixed('status', 200)
-  fixed('statusText', 'OK')
-  fixed('responseURL', new URL(url, location.href).href)
-  fixed('responseText', text)
-  fixed('response', xhr.responseType === 'json' ? JSON.parse(text) : text)
-  xhr.getResponseHeader = (name) => (name.toLowerCase() === 'content-type' ? 'application/json; charset=utf-8' : null)
-  xhr.getAllResponseHeaders = () => 'content-type: application/json; charset=utf-8\r\n'
-  setTimeout(() => {
-    for (const type of ['readystatechange', 'load', 'loadend']) xhr.dispatchEvent(new ProgressEvent(type))
+/**
+ * Changes what X reads of a request's answer, once the answer is complete. `change` gets the
+ * answer and returns the text X reads instead, or null to leave the answer as it is.
+ */
+function rewrite(xhr: XMLHttpRequest, change: (json: any) => string | null) {
+  // The browser's own getters: the last ones on the prototype chain. Other extensions put their
+  // own getters in front, and those read the instance again, which would come back here.
+  const native = (name: string) => {
+    let found: (() => any) | undefined
+    for (let proto = Object.getPrototypeOf(xhr); proto; proto = Object.getPrototypeOf(proto)) {
+      found = Object.getOwnPropertyDescriptor(proto, name)?.get ?? found
+    }
+    return found
+  }
+  const [text, response, state, status] = ['responseText', 'response', 'readyState', 'status'].map(native)
+  if (!text || !response || !state || !status) return // leave X's answer as it is
+  let result: string | null | undefined
+  const changed = () => {
+    if (result !== undefined) return result
+    if (state.call(xhr) !== 4 || status.call(xhr) !== 200) return null
+    try {
+      result = change(JSON.parse(text.call(xhr)))
+    } catch {
+      result = null
+    }
+    return result
+  }
+  Object.defineProperty(xhr, 'responseText', { configurable: true, get: () => changed() ?? text.call(xhr) })
+  Object.defineProperty(xhr, 'response', {
+    configurable: true,
+    get: () => {
+      const value = changed()
+      if (value === null) return response.call(xhr)
+      return xhr.responseType === 'json' ? JSON.parse(value) : value
+    },
   })
 }

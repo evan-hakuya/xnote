@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addAnswer, answerFrom, commit, fromFirst, postsIn, timelineOf } from './resume.ts'
+import { addAnswer, answerFrom, commit, fromFirst, newIn, postsIn, timelineOf, withNewer } from './resume.ts'
 
 const cursor = (type: 'Top' | 'Bottom', value: string) => ({
   entryId: `cursor-${type.toLowerCase()}-${value}`,
@@ -40,4 +40,16 @@ test('counts the posts of a copy, each post of a conversation too', () => {
   const conversation = { entryId: 'home-conversation-1', content: { items: [{}, {}, {}] } }
   const saved = fromFirst(answer(post('1'), conversation, { entryId: 'who-to-follow-2' }), 0)
   assert.equal(postsIn(saved), 4)
+})
+
+test('the posts of a fresh answer join X\'s next answer with newer posts', () => {
+  const saved = fromFirst(answer(cursor('Top', 't1'), post('9'), cursor('Bottom', 'b1')), 0)
+  const waiting = newIn(saved, answer(cursor('Top', 'f'), post('20'), post('9'), cursor('Bottom', 'fb')))
+  assert.deepEqual(waiting.map((entry) => entry.entryId), ['tweet-20'])
+  const newer = withNewer(answer(cursor('Top', 't2'), post('21'), post('20')), waiting)
+  assert.deepEqual(ids(JSON.stringify(newer)), ['cursor-top-t2', 'tweet-21', 'tweet-20'])
+  // Without posts of its own, X's answer gets an instruction for them.
+  const empty = { data: { home: { home_timeline_urt: { instructions: [{ type: 'TimelineShowAlert' }] } } } }
+  const added = withNewer(empty, waiting).data.home.home_timeline_urt.instructions[1]
+  assert.deepEqual(added.entries.map((entry: any) => entry.entryId), ['tweet-20'])
 })
