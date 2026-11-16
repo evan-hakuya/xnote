@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addAnswer, answerFrom, commit, fromFirst, newIn, postsIn, timelineOf, trimAround, withNewer } from './resume.ts'
+import { addAnswer, answerFrom, commit, fromFirst, newIn, postsIn, seenOnly, timelineOf, trimAround, withNewer } from './resume.ts'
 
 const cursor = (type: 'Top' | 'Bottom', value: string) => ({
   entryId: `cursor-${type.toLowerCase()}-${value}`,
@@ -54,6 +54,14 @@ test('keeps the posts around the one the user is at', () => {
   const lost = posts()
   trimAround(lost, 'gone') // the post is not in the copy: its first posts
   assert.equal(lost.entries.length, 61)
+})
+
+test('the written copy ends at the last post the user saw', () => {
+  const saved = fromFirst(answer(post('1'), post('2'), { entryId: 'home-conversation-9', content: { items: [{ entryId: 'home-conversation-9-tweet-3' }] } }, post('4'), post('5')), 0)
+  const written = seenOnly(saved, new Set(['1', '3']))
+  assert.deepEqual(written.entries.map((entry) => entry.entryId), ['tweet-1', 'tweet-2', 'home-conversation-9'])
+  assert.equal(saved.entries.length, 5) // the copy in memory keeps the posts that may be seen later
+  assert.equal(seenOnly(saved, new Set()), saved) // nothing seen yet: all of it
 })
 
 test('the posts of a fresh answer join X\'s next answer with newer posts', () => {

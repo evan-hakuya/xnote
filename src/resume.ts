@@ -115,6 +115,19 @@ export function trimAround(saved: Saved, id: string | undefined) {
   saved.entries = saved.entries.slice(start, Math.max(0, at) + KEEP_BELOW + 1)
 }
 
+/** The ids of the posts in an entry: a conversation has several. */
+export const postIdsOf = (entry: Entry) =>
+  [entry.entryId, ...(entry.content?.items ?? []).map((item: any) => item?.entryId)].flatMap((name) =>
+    [...String(name).matchAll(/tweet-(\d+)/g)].map((match) => match[1]!),
+  )
+
+/** The copy as it is written: the posts after the last one the user saw are left out. */
+export function seenOnly(saved: Saved, seen: Set<string>): Saved {
+  let last = saved.entries.length - 1
+  while (last >= 0 && !postIdsOf(saved.entries[last]!).some((id) => seen.has(id))) last--
+  return last < 0 ? saved : { ...saved, entries: saved.entries.slice(0, last + 1) }
+}
+
 /** X's first answer again, with every post of the copy and the newest cursors. */
 export function answerFrom(saved: Saved) {
   const json = structuredClone(saved.shell)
@@ -176,13 +189,17 @@ export function installResume(store: Store) {
     .catch(() => undefined)
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  // The posts the user saw: at least half of one, or 40% of the window for a tall one, once the
+  // page stopped moving. The copy keeps all posts in memory, so posts that load below and are
+  // seen later still count; only what is written leaves the unseen ones out.
+  const seen = new Set<string>()
   const save = (key: string) => {
     clearTimeout(timers.get(key))
     timers.set(key, setTimeout(() => {
       const saved = copies.get(key)
       void db.then((base) => {
         const objects = base.transaction(STORE, 'readwrite').objectStore(STORE)
-        if (saved) objects.put(saved, `${account}|${key}`)
+        if (saved) objects.put(seenOnly(saved, seen), `${account}|${key}`)
       }).catch(() => undefined)
     }, 500))
   }
@@ -196,8 +213,10 @@ export function installResume(store: Store) {
   // The link of a post, by its id: the time of a post links to the post.
   // Hidden posts measure as 0 × 0 at the top, and posts that the masonry has not placed yet (it
   // keeps them unseen) sit at the top of the grid while X rebuilds the feed: never use those.
+  // A far-off card of the masonry skips drawing its content but keeps its place: it counts.
   const shown = (element: Element) =>
-    element.getBoundingClientRect().height > 0 && element.checkVisibility({ visibilityProperty: true })
+    element.getBoundingClientRect().height > 0 &&
+    (element.closest('.xnote-far') !== null || element.checkVisibility({ visibilityProperty: true }))
   const postLink = (id: string) => [...document.querySelectorAll(`main article a[href$="/status/${id}"]:has(time)`)].find(shown)
   // Back to the post that was at the top of the window. The page grows and shrinks for a long
   // time while images load and X builds the feed again, so keep the post there until the user
@@ -272,6 +291,8 @@ export function installResume(store: Store) {
           restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 60000 }
           requestAnimationFrame(keepPlace)
         }
+        // The written copy held only posts the user saw.
+        for (const entry of saved.entries) for (const id of postIdsOf(entry)) seen.add(id)
         return answerFrom(saved)
       })
     } else if (cursor && waiting.get(key)?.length && cursor === cursorOf(copies.get(key)?.top)) {
@@ -322,6 +343,8 @@ export function installResume(store: Store) {
         if (link.closest('article article, div[role="link"]') || !shown(link)) continue // a quoted or hidden post
         const offset = link.getBoundingClientRect().top
         const id = link.getAttribute('href')?.split('/').pop()
+        const box = link.closest('article')?.getBoundingClientRect()
+        if (id && box && Math.min(box.bottom, innerHeight) - Math.max(box.top, 0) >= Math.min(box.height / 2, innerHeight * 0.4)) seen.add(id)
         if (id && offset >= 0 && offset < innerHeight && (!best || offset < best.offset)) best = { id, offset }
       }
       saved.anchor = best
