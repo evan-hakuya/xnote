@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addAnswer, answerFrom, commit, fromFirst, timelineOf } from './resume.ts'
+import { addAnswer, answerFrom, commit, fromFirst, postsIn, timelineOf } from './resume.ts'
 
 const cursor = (type: 'Top' | 'Bottom', value: string) => ({
   entryId: `cursor-${type.toLowerCase()}-${value}`,
@@ -34,4 +34,10 @@ test('keeps the posts that X loaded and answers with them, newest cursors first 
   assert.ok(commit(saved, 4))
   assert.deepEqual(ids(answerFrom(saved)).slice(0, 3), ['cursor-top-t2', 'tweet-11', 'tweet-10'])
   assert.equal(commit(saved, 5), false)
+})
+
+test('counts the posts of a copy, each post of a conversation too', () => {
+  const conversation = { entryId: 'home-conversation-1', content: { items: [{}, {}, {}] } }
+  const saved = fromFirst(answer(post('1'), conversation, { entryId: 'who-to-follow-2' }), 0)
+  assert.equal(postsIn(saved), 4)
 })

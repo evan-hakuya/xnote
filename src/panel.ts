@@ -1,6 +1,12 @@
 import { t, type MessageKey } from './i18n.ts'
 import { addStyle, onPageChange } from './page.ts'
+import type { ResumeSwitch } from './resume.ts'
 import type { Settings, Store } from './settings.ts'
+
+type Cache = { count(toggle: ResumeSwitch): number; clear(toggle: ResumeSwitch): void }
+const RESUME: ResumeSwitch[] = ['resumeForYou', 'resumeFollowing', 'resumeLists']
+// The lines that show what a cache holds, filled in each time the window opens.
+const refreshers: (() => void)[] = []
 
 const ENTRY_ID = 'xnote-entry'
 const MORE_BUTTON = 'header[role="banner"] nav [data-testid="AppTabBar_More_Menu"]'
@@ -102,6 +108,9 @@ const CSS = `
 #xnote-panel section label:last-child { border-bottom: 0; }
 #xnote-panel label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; cursor: pointer; }
 #xnote-panel small { display: block; opacity: 0.6; font-size: 13px; }
+#xnote-panel .xnote-cache button { margin-left: 8px; padding: 0; color: rgb(29, 155, 240); font-size: 13px; }
+#xnote-panel .xnote-cache button:hover { text-decoration: underline; }
+#xnote-panel .xnote-cache button:disabled { color: inherit; opacity: 0.5; text-decoration: none; cursor: default; }
 #xnote-panel input { flex: none; font: inherit; accent-color: rgb(29, 155, 240); }
 #xnote-panel input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
 #xnote-panel input[type="number"] { width: 80px; }
@@ -116,7 +125,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) {
 }
 
 /** One setting as a row: a switch, a number or a text field, by the type of its value. */
-function row(store: Store, key: keyof Settings) {
+function row(store: Store, key: keyof Settings, cache?: Cache) {
   const label = el('label')
   const text = el('span', t(key))
   const input = el('input')
@@ -124,6 +133,27 @@ function row(store: Store, key: keyof Settings) {
   if (typeof value === 'boolean') {
     const hint = hints[key as KeysOf<boolean>]
     if (hint) text.append(el('small', t(hint)))
+    const toggle = RESUME.find((name) => name === key)
+    if (cache && toggle) {
+      const line = el('small')
+      line.className = 'xnote-cache'
+      const count = el('span')
+      const clear = el('button', t('clearCache'))
+      clear.type = 'button'
+      const refresh = () => {
+        const posts = cache.count(toggle)
+        count.textContent = t('cachedPosts').replace('{n}', String(posts))
+        clear.disabled = posts === 0
+      }
+      clear.addEventListener('click', (event) => {
+        event.preventDefault() // a click in a label would also flip its switch
+        cache.clear(toggle)
+        refresh()
+      })
+      refreshers.push(refresh)
+      line.append(count, clear)
+      text.append(line)
+    }
     input.type = 'checkbox'
     input.setAttribute('role', 'switch')
     input.checked = value
@@ -146,7 +176,7 @@ function row(store: Store, key: keyof Settings) {
   return label
 }
 
-function createPanel(store: Store, notice: HTMLElement) {
+function createPanel(store: Store, notice: HTMLElement, cache?: Cache) {
   document.head.append(el('style', CSS))
 
   const dialog = el('dialog')
@@ -172,7 +202,7 @@ function createPanel(store: Store, notice: HTMLElement) {
     for (const section of sections) {
       if (section.title) page.append(el('h3', t(section.title)))
       const box = el('section')
-      box.append(...section.keys.map((key) => row(store, key)))
+      box.append(...section.keys.map((key) => row(store, key, cache)))
       page.append(box)
     }
     const tab = el('button', t(title))
@@ -195,7 +225,7 @@ function createPanel(store: Store, notice: HTMLElement) {
   return dialog
 }
 
-export function installPanel(store: Store, getNotice: () => MessageKey | null) {
+export function installPanel(store: Store, getNotice: () => MessageKey | null, cache?: Cache) {
   let dialog: HTMLDialogElement | undefined
   // X gives its navigation items a pill of 10% text colour under the pointer, from script. The
   // entry is a copy without that script; the pill's shape and transition come with the copy.
@@ -204,7 +234,8 @@ export function installPanel(store: Store, getNotice: () => MessageKey | null) {
   notice.setAttribute('role', 'status')
 
   const open = () => {
-    dialog ??= createPanel(store, notice)
+    dialog ??= createPanel(store, notice, cache)
+    for (const refresh of refreshers) refresh()
     const message = getNotice()
     notice.hidden = !message
     notice.textContent = message ? t(message) : ''

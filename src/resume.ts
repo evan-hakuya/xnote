@@ -59,6 +59,15 @@ function parts(json: any) {
 }
 
 const cursorOf = (entry?: Entry) => entry?.content?.value as string | undefined
+
+/** How many posts a copy holds: a conversation counts each of its posts. */
+export function postsIn(saved: Saved) {
+  return saved.entries.reduce((sum, entry) => {
+    if (entry.entryId.startsWith('tweet-')) return sum + 1
+    if (entry.entryId.startsWith('home-conversation-')) return sum + (entry.content?.items?.length ?? 0)
+    return sum
+  }, 0)
+}
 const without = (entries: Entry[], known: Entry[]) => {
   const ids = new Set(known.map((entry) => entry.entryId))
   return entries.filter((entry) => !ids.has(entry.entryId))
@@ -147,6 +156,7 @@ export function installResume(store: Store) {
       }).catch(() => undefined)
     }, 500))
   }
+  const keysOf = (toggle: Switch) => [...copies.keys()].filter((key) => timelineToggle(key) === toggle)
   const on = (toggle: Switch) => store.get().enabled && store.get()[toggle as keyof Settings] === true
 
   // The timeline on screen, from the last request X made for one; unknown right after a tab switch.
@@ -252,7 +262,23 @@ export function installResume(store: Store) {
     clearTimeout(still)
     still = setTimeout(place, 300)
   }, { passive: true })
+
+  return {
+    /** The posts kept for one switch; the pinned lists together. */
+    count: (toggle: Switch) => keysOf(toggle).reduce((sum, key) => sum + postsIn(copies.get(key)!), 0),
+    clear(toggle: Switch) {
+      for (const key of keysOf(toggle)) {
+        clearTimeout(timers.get(key))
+        copies.delete(key)
+        void db.then((base) => base.transaction(STORE, 'readwrite').objectStore(STORE).delete(`${account}|${key}`)).catch(() => undefined)
+      }
+    },
+  }
 }
+
+export type ResumeSwitch = Switch
+const timelineToggle = (key: string): Switch =>
+  key === 'forYou' ? 'resumeForYou' : key === 'following' ? 'resumeFollowing' : 'resumeLists'
 
 /** Completes a request of X without the network, as if the server had sent `text`. */
 function serve(xhr: XMLHttpRequest & { xnoteServed?: boolean }, text: string, url: string) {
