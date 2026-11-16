@@ -4,6 +4,8 @@ import type { ResumeSwitch } from './resume.ts'
 import type { Settings, Store } from './settings.ts'
 
 type Cache = { count(toggle: ResumeSwitch): number; clear(toggle: ResumeSwitch): void }
+// Given by the userscript manager when the script header grants it.
+declare const GM_registerMenuCommand: ((name: string, run: () => void) => unknown) | undefined
 const RESUME: ResumeSwitch[] = ['resumeForYou', 'resumeFollowing', 'resumeLists']
 // The lines that show what a cache holds, filled in each time the window opens.
 const refreshers: (() => void)[] = []
@@ -53,7 +55,12 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     sections: [
       {
         title: 'subNavItems',
-        keys: ['hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav'],
+        keys: [
+          'hideExploreNav', 'hideNotificationsNav', 'hideMessagesNav', 'hideCallsNav', 'hideHistoryNav', 'hideProfileNav',
+          'hideListsNav', 'hideCommunitiesNav', 'hideSpacesNav',
+          'hidePremiumNav', 'hideConnectNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideJobsNav', 'hideMoneyNav',
+          'hideXnoteNav',
+        ],
       },
       { title: 'subPageParts', keys: ['hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
     ],
@@ -269,4 +276,10 @@ export function installPanel(store: Store, getNotice: () => MessageKey | null, c
   // X re-renders its navigation, so keep the entry in place.
   onPageChange(ensureEntry)
   ensureEntry()
+
+  // The manager's menu opens the window too. Its entry is what lets the navigation's entry hide.
+  if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand(t('settings'), open)
+    document.documentElement.classList.add('xnote-menu')
+  }
 }

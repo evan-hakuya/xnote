@@ -12,8 +12,10 @@ export default defineConfig({
         license: 'MIT',
         match: ['https://x.com/*', 'https://twitter.com/*'],
         'run-at': 'document-start',
-        // No GM APIs: the script must run in the page context to reach X's React internals (ADR-0002).
-        grant: 'none',
+        // The script must run in the page context to reach X's React internals (ADR-0002). A grant
+        // makes the manager wrap the script; "raw" keeps it in the page all the same.
+        grant: ['GM_registerMenuCommand'],
+        sandbox: 'raw',
       },
       build: { fileName: 'xnote.user.js' },
     }),

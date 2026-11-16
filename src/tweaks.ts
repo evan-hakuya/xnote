@@ -69,6 +69,17 @@ const rules: Partial<Record<Switch, string>> = {
     '[data-testid="ownProfilePaymentsButton"]',
     '[data-testid="ownProfilePaymentsButtonWithBalance"]',
   ),
+  hideExploreNav: navItem('a[href="/explore"]'),
+  hideNotificationsNav: navItem('a[href="/notifications"]'),
+  hideMessagesNav: navItem('a:is([href="/i/chat"], [href="/messages"])'),
+  hideCallsNav: navItem('a[href="/i/calls"]'),
+  hideHistoryNav: navItem('a:is([href="/i/history"], [href="/i/bookmarks"])'),
+  hideProfileNav: navItem('a[data-testid="AppTabBar_Profile_Link"]'),
+  hideListsNav: navItem('a[href$="/lists"]'),
+  hideCommunitiesNav: navItem('a[href$="/communities"]'),
+  hideSpacesNav: navItem('a[href="/i/spaces/start"]'),
+  // panel.ts marks the page once the manager's menu has the entry, so the panel stays reachable.
+  hideXnoteNav: hide('html.xnote-menu #xnote-entry'),
   // Hidden, not removed: X keeps using the drawer's node.
   hideChatDrawer: 'div:is([data-testid="DMDrawer"], [data-testid="chat-drawer-root"]) { visibility: hidden; }',
   hideViews: hide(
