@@ -70,11 +70,12 @@ html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellI
 /* The posts of a thread are one card: X draws a line from one avatar to the next. */
 .xnote-grid > .xnote-joined { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .xnote-grid > .xnote-card:has(+ .xnote-joined) { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-/* Promoted posts, and the "Who to follow" module with its heading and "Show more" link. */
-.xnote-grid > :has([data-testid="placementTracking"] article),
-.xnote-grid > :has([data-testid="UserCell"]),
-.xnote-grid > :has(h2[role="heading"]):has(+ * [data-testid="UserCell"]),
-.xnote-grid > :has(a[href^="/i/connect_people"]) { display: none !important; }
+/* Promoted posts, and the "Who to follow" module with its heading and "Show more" link, marked
+   from script: as :has() rules they cost the browser a lot on every change of a large feed. */
+.xnote-grid > .xnote-skip { display: none !important; }
+/* Cards far from the window keep their size but the browser skips their content. The height is
+   pinned: content-visibility:auto changes it and makes X measure its posts again and again. */
+.xnote-grid > .xnote-far { content-visibility: hidden; contain-intrinsic-height: var(--xnote-far-height); }
 `
 
 // X's private React internals (ADR-0002). Everything read from them is checked before use.
@@ -148,14 +149,21 @@ export function installMasonry(store: Store) {
     layoutQueued = false
     if (!container?.isConnected) return
     const all = [...container.children] as HTMLElement[]
-    for (const cell of all) {
+    for (const [index, cell] of all.entries()) {
       const card = cell.querySelector('article') !== null
+      const next = all[index + 1]
+      cell.classList.toggle(
+        'xnote-skip',
+        cell.querySelector('[data-testid="placementTracking"] article, [data-testid="UserCell"], a[href^="/i/connect_people"]') !== null ||
+          (cell.querySelector('h2[role="heading"]') !== null && next?.querySelector('[data-testid="UserCell"]') != null),
+      )
       // A cell must have its final width before its height is read.
       if (!cell.style.gridRowStart || card !== cell.classList.contains('xnote-card')) {
         cell.style.gridColumn = card ? 'auto' : '1 / -1'
       }
       cell.classList.toggle('xnote-card', card)
       resizes.observe(cell)
+      far.observe(cell)
     }
     const { cardMinWidth, cardGap: gap } = store.get()
     // The container has a padding of one gap on each side.
@@ -202,6 +210,19 @@ export function installMasonry(store: Store) {
   }
   const resizes = new ResizeObserver(queueLayout)
   const children = new MutationObserver(queueLayout)
+  // Every loaded post stays on the page, so each change of the feed costs more as it grows.
+  const far = new IntersectionObserver(
+    (entries) => {
+      for (const { target, isIntersecting, boundingClientRect } of entries) {
+        const cell = target as HTMLElement
+        if (!isIntersecting && boundingClientRect.height > 0) {
+          cell.style.setProperty('--xnote-far-height', `${boundingClientRect.height}px`)
+          cell.classList.add('xnote-far')
+        } else cell.classList.remove('xnote-far')
+      }
+    },
+    { rootMargin: '200% 0px' },
+  )
 
   // X decides when to load the next page from its one-column positions, which are now wrong,
   // so call its own "near the end" callback instead. X makes the request (ADR-0001).
@@ -221,10 +242,11 @@ export function installMasonry(store: Store) {
   const stop = () => {
     resizes.disconnect()
     children.disconnect()
+    far.disconnect()
     if (container) {
       container.classList.remove('xnote-grid')
       for (const cell of container.children as HTMLCollectionOf<HTMLElement>) {
-        cell.classList.remove('xnote-card', 'xnote-joined')
+        cell.classList.remove('xnote-card', 'xnote-joined', 'xnote-skip', 'xnote-far')
         cell.style.gridArea = ''
         cell.style.marginTop = ''
       }

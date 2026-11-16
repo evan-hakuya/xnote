@@ -25,7 +25,12 @@ export type Saved = {
 }
 
 export const MAX_AGE = 12 * 60 * 60 * 1000
-const MAX_ENTRIES = 500
+// Every post of the copy is on the page after a refresh, and the masonry keeps them all there:
+// the page gets slow with a few hundred. After a refresh only the posts around the one the user
+// was at come back; the ones far above were seen, the ones far below never were.
+const MAX_ENTRIES = 200
+const KEEP_ABOVE = 20
+const KEEP_BELOW = 60
 
 /** Which home timeline a request of X is for: For you, Following, or a pinned list. */
 export function timelineOf(op: string, variables: any): { key: string; toggle: Switch } | null {
@@ -101,6 +106,13 @@ export function commit(saved: Saved, now: number) {
   saved.pending = undefined
   saved.savedAt = now
   return true
+}
+
+/** Keeps the posts around `id`, the post the user is at. Without it, the first posts. */
+export function trimAround(saved: Saved, id: string | undefined) {
+  const at = saved.entries.findIndex((entry) => entry.entryId === `tweet-${id}` || JSON.stringify(entry.content ?? '').includes(`"${id}"`))
+  const start = Math.max(0, at - KEEP_ABOVE)
+  saved.entries = saved.entries.slice(start, Math.max(0, at) + KEEP_BELOW + 1)
 }
 
 /** X's first answer again, with every post of the copy and the newest cursors. */
@@ -256,6 +268,7 @@ export function installResume(store: Store) {
         // posts is needed once only.
         if (!placed) askNewer = placed = true
         if (saved.scroll > 0) {
+          trimAround(saved, saved.anchor?.id)
           restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 60000 }
           requestAnimationFrame(keepPlace)
         }
@@ -312,6 +325,7 @@ export function installResume(store: Store) {
         if (id && offset >= 0 && offset < innerHeight && (!best || offset < best.offset)) best = { id, offset }
       }
       saved.anchor = best
+      if (best && saved.entries.length > MAX_ENTRIES / 2) trimAround(saved, best.id)
       save(active)
     }
   }

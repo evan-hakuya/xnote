@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { addAnswer, answerFrom, commit, fromFirst, newIn, postsIn, timelineOf, withNewer } from './resume.ts'
+import { addAnswer, answerFrom, commit, fromFirst, newIn, postsIn, timelineOf, trimAround, withNewer } from './resume.ts'
 
 const cursor = (type: 'Top' | 'Bottom', value: string) => ({
   entryId: `cursor-${type.toLowerCase()}-${value}`,
@@ -40,6 +40,20 @@ test('counts the posts of a copy, each post of a conversation too', () => {
   const conversation = { entryId: 'home-conversation-1', content: { items: [{}, {}, {}] } }
   const saved = fromFirst(answer(post('1'), conversation, { entryId: 'who-to-follow-2' }), 0)
   assert.equal(postsIn(saved), 4)
+})
+
+test('keeps the posts around the one the user is at', () => {
+  const posts = () => fromFirst(answer(...Array.from({ length: 200 }, (_, i) => post(String(i)))), 0)
+  const saved = posts()
+  trimAround(saved, '70')
+  assert.equal(saved.entries[0]!.entryId, 'tweet-50')
+  assert.equal(saved.entries.at(-1)!.entryId, 'tweet-130')
+  const top = posts()
+  trimAround(top, '5')
+  assert.equal(top.entries[0]!.entryId, 'tweet-0')
+  const lost = posts()
+  trimAround(lost, 'gone') // the post is not in the copy: its first posts
+  assert.equal(lost.entries.length, 61)
 })
 
 test('the posts of a fresh answer join X\'s next answer with newer posts', () => {
