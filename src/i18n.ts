@@ -50,7 +50,7 @@ const messages = {
     twemoji: 'Twemoji',
     cardMinWidth: 'Minimum card width (px)',
     cardGap: 'Card gap (px)',
-    pageMargin: 'Page side margin (px, -1 for X default)',
+    wideLayout: 'Wide layout',
     masonryBroken: 'Masonry is off: X changed its internals. xnote needs an update.',
   },
   'zh-Hans': {
@@ -104,7 +104,7 @@ const messages = {
     twemoji: '表情还原为 Twemoji',
     cardMinWidth: '卡片最小宽度（像素）',
     cardGap: '卡片间距（像素）',
-    pageMargin: '页面两侧留白（像素，-1 为 X 默认）',
+    wideLayout: '宽屏布局',
     masonryBroken: '瀑布流已停用：X 的内部实现变了，xnote 需要更新。',
   },
   'zh-Hant': {
@@ -158,7 +158,7 @@ const messages = {
     twemoji: '表情還原為 Twemoji',
     cardMinWidth: '卡片最小寬度（像素）',
     cardGap: '卡片間距（像素）',
-    pageMargin: '頁面兩側留白（像素，-1 為 X 預設）',
+    wideLayout: '寬螢幕佈局',
     masonryBroken: '瀑布流已停用：X 的內部實作變了，xnote 需要更新。',
   },
 }

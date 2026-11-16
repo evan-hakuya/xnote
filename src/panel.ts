@@ -18,11 +18,10 @@ type Group = {
 const groups: Group[] = [
   {
     title: 'groupFeed',
-    switches: ['enabled', 'masonryHome', 'masonryProfile', 'masonrySearch', 'detailOverlay', 'hoverPlay'],
+    switches: ['enabled', 'masonryHome', 'masonryProfile', 'masonrySearch', 'wideLayout', 'detailOverlay', 'hoverPlay'],
     numbers: [
       { key: 'cardMinWidth', min: 160, max: 800 },
       { key: 'cardGap', min: 0, max: 48 },
-      { key: 'pageMargin', min: -1, max: 1000 },
     ],
   },
   {

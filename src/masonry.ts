@@ -14,13 +14,12 @@ const switchFor = {
 
 const CSS = `
 html.xnote-masonry [data-testid="sidebarColumn"] { display: none !important; }
-/* By default the feed takes the width that X gives to the timeline and the sidebar together.
-   With a set page margin the navigation sits that far from the left on every page, the feed
-   fills the rest up to the same margin on the right, and other pages centre their content. */
-html.xnote-margin div:has(> header[role="banner"]) { padding-inline: var(--xnote-margin) !important; box-sizing: border-box; }
-html.xnote-margin header[role="banner"] { flex-grow: 0 !important; }
-html.xnote-margin main[role="main"] { flex-grow: 1 !important; align-items: center !important; }
-html.xnote-margin.xnote-masonry main[role="main"] > div,
+/* Wide layout: the navigation and the feed touch the sides of the window. Other pages keep X's
+   content, centred in the space beside the navigation. */
+html.xnote-wide header[role="banner"] { flex-grow: 0 !important; width: auto !important; align-items: flex-start !important; }
+html.xnote-wide header[role="banner"] > div { margin-left: 0 !important; }
+html.xnote-wide main[role="main"] { flex-grow: 1 !important; align-items: center !important; }
+html.xnote-wide.xnote-masonry main[role="main"] > div,
 html.xnote-masonry main[role="main"] > div > div,
 html.xnote-masonry main[role="main"] > div > div > div,
 html.xnote-masonry [data-testid="primaryColumn"],
@@ -28,6 +27,9 @@ html.xnote-masonry [data-testid="primaryColumn"] :has(.xnote-grid) {
   width: 100% !important;
   max-width: none !important;
 }
+/* Otherwise X's layout, and the feed leaves as much blank space on the right as X leaves on the
+   left of the navigation (--xnote-feed is set by the script). */
+html.xnote-masonry:not(.xnote-wide) main[role="main"] > div > div { width: var(--xnote-feed, 100%) !important; }
 /* A profile's header arrives before its posts: wide from then on, so the page does not jump. */
 html.xnote-profile [data-testid="primaryColumn"] :has([data-testid="UserName"]) { max-width: none !important; }
 /* A profile's banner and avatar scale with their width: keep the sizes they have at X's 600px. */
@@ -226,14 +228,22 @@ export function installMasonry(store: Store) {
     const kind = feedKind(location.pathname)
     const values = store.get()
     const root = document.documentElement
-    root.style.setProperty('--xnote-margin', `${Math.max(0, values.pageMargin)}px`)
-    root.classList.toggle('xnote-margin', values.enabled && values.pageMargin >= 0)
+    root.classList.toggle('xnote-wide', values.enabled && values.wideLayout)
     if (kind === 'keep') return
     root.style.setProperty('--xnote-gap', `${values.cardGap}px`)
     const wanted = values.enabled && !broken && kind !== null && values[switchFor[kind]]
     root.classList.toggle('xnote-masonry', wanted)
     root.classList.toggle('xnote-profile', wanted && kind === 'profile')
     if (!wanted) return stop()
+    if (!values.wideLayout) {
+      // X's column of navigation is right-aligned in the header; the space before it is the margin.
+      const left = document.querySelector('header[role="banner"] > div')?.getBoundingClientRect().left
+      const start = document.querySelector('main[role="main"] > div')?.getBoundingClientRect().left
+      if (left !== undefined && start !== undefined) {
+        const width = `${Math.round(root.clientWidth - start - left)}px`
+        if (root.style.getPropertyValue('--xnote-feed') !== width) root.style.setProperty('--xnote-feed', width)
+      }
+    }
 
     const next = document.querySelector(CELL)?.parentElement ?? null
     if (next === container || !next) return
@@ -260,6 +270,7 @@ export function installMasonry(store: Store) {
 
   addStyle(CSS)
   onPageChange(sync)
+  addEventListener('resize', queuePageCheck)
   addEventListener('scroll', onScroll, { passive: true })
   store.subscribe(() => (queuePageCheck(), queueLayout()))
 
