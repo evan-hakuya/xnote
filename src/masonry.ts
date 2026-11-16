@@ -73,6 +73,9 @@ html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellI
 /* Promoted posts, and the "Who to follow" module with its heading and "Show more" link, marked
    from script: as :has() rules they cost the browser a lot on every change of a large feed. */
 .xnote-grid > .xnote-skip { display: none !important; }
+/* A quoted post with an article puts the article card and the post's text side by side. The card
+   takes all of a card's width, which leaves the text a column of no width, one character a line. */
+.xnote-grid div:has(> div > div > [data-testid="article-cover-image"]) { flex-direction: column !important; }
 /* Cards far from the window keep their size but the browser skips their content. The height is
    pinned: content-visibility:auto changes it and makes X measure its posts again and again. */
 .xnote-grid > .xnote-far { content-visibility: hidden; contain-intrinsic-height: var(--xnote-far-height); }
