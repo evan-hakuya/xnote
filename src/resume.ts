@@ -180,10 +180,16 @@ export function installResume(store: Store) {
   // The timeline on screen, from the last request X made for one; unknown right after a tab switch.
   let active: string | null = null
   let restore: { top: number; anchor?: Saved['anchor']; until: number } | undefined
+  let placed = false // X has shown a copy since the page loaded
   // The link of a post, by its id: the time of a post links to the post.
-  const postLink = (id: string) => document.querySelector(`main article a[href$="/status/${id}"]:has(time)`)
-  // Back to the post that was at the top of the window. The page grows and shrinks while X and the
-  // masonry lay the posts out, so keep it there for a few seconds, until the user moves the page.
+  // Hidden posts measure as 0 × 0 at the top, and posts that the masonry has not placed yet (it
+  // keeps them unseen) sit at the top of the grid while X rebuilds the feed: never use those.
+  const shown = (element: Element) =>
+    element.getBoundingClientRect().height > 0 && element.checkVisibility({ visibilityProperty: true })
+  const postLink = (id: string) => [...document.querySelectorAll(`main article a[href$="/status/${id}"]:has(time)`)].find(shown)
+  // Back to the post that was at the top of the window. The page grows and shrinks for a long
+  // time while images load and X builds the feed again, so keep the post there until the user
+  // moves the page; a minute at most.
   const keepPlace = () => {
     if (!restore) return
     if (location.pathname !== '/home' || Date.now() > restore.until) return void (restore = undefined)
@@ -245,10 +251,12 @@ export function installResume(store: Store) {
         if (!saved) return null
         this.xnoteKept = true
         waiting.set(key, newIn(saved, json))
-        askNewer = true
         saved.pending = undefined
+        // X asks again each time the user comes back to Home from another page; its poll for newer
+        // posts is needed once only.
+        if (!placed) askNewer = placed = true
         if (saved.scroll > 0) {
-          restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 10000 }
+          restore = { top: saved.scroll, anchor: saved.anchor, until: Date.now() + 60000 }
           requestAnimationFrame(keepPlace)
         }
         return answerFrom(saved)
@@ -298,7 +306,7 @@ export function installResume(store: Store) {
       // The highest post that starts inside the window.
       let best: { id: string; offset: number } | undefined
       for (const link of document.querySelectorAll('main article a[href*="/status/"]:has(time)')) {
-        if (link.closest('article article, div[role="link"]')) continue // a quoted post
+        if (link.closest('article article, div[role="link"]') || !shown(link)) continue // a quoted or hidden post
         const offset = link.getBoundingClientRect().top
         const id = link.getAttribute('href')?.split('/').pop()
         if (id && offset >= 0 && offset < innerHeight && (!best || offset < best.offset)) best = { id, offset }
