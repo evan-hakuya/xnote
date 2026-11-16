@@ -60,10 +60,11 @@ html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellI
    numbers that matter least: first the views, then the reposts. The icons always stay. */
 .xnote-grid article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) { container-type: inline-size; }
 .xnote-grid article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) > div:not(:last-child) { flex: 1 0 auto !important; }
-@container (width < 240px) {
+/* Measured on 56 posts: every action shows in 299px, without the view count in 261px. */
+@container (width < 300px) {
   .xnote-grid article [role="group"] a[href$="/analytics"] [data-testid="app-text-transition-container"] { display: none; }
 }
-@container (width < 220px) {
+@container (width < 262px) {
   .xnote-grid article [role="group"] :is([data-testid="retweet"], [data-testid="unretweet"]) [data-testid="app-text-transition-container"] { display: none; }
 }
 /* The posts of a thread are one card: X draws a line from one avatar to the next. */
