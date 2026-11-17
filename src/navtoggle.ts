@@ -39,7 +39,9 @@ html.xnote-nav-narrow header[role="banner"] > div > div > div > div { align-item
 html.xnote-nav-narrow header[role="banner"] nav { width: 52px !important; align-items: center; }
 html.xnote-nav-narrow header[role="banner"] nav [dir] { display: none !important; }
 html.xnote-nav-narrow [data-testid="SideNav_NewTweet_Button"] { width: 52px !important; min-width: 0 !important; height: 52px !important; padding: 0 !important; }
-html.xnote-nav-narrow [data-testid="SideNav_NewTweet_Button"] [dir] > * { display: none; }
+/* Hidden but laid out: X measures the label once, and one measured without a box stays empty
+   after the navigation is expanded again. */
+html.xnote-nav-narrow [data-testid="SideNav_NewTweet_Button"] [dir] > * { visibility: hidden; position: absolute; }
 html.xnote-nav-narrow [data-testid="SideNav_NewTweet_Button"] [dir]::before {
   content: ""; display: block; width: 24px; height: 24px; background: currentColor; -webkit-mask: ${FEATHER} center / contain no-repeat; mask: ${FEATHER} center / contain no-repeat;
 }
