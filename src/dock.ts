@@ -48,11 +48,11 @@ html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
 /* The box and X's panel of recent searches below it are one card: the box keeps its round top,
    the panel continues it with the same round bottom, a line between them. The panel's scroll bar
    squares its corners, so it is clipped to that shape. */
-html.xnote-spotlight ${SIDEBAR} form[role="search"]:has([id^="typeaheadDropdown"]) div:has(> div > div > [data-testid="SearchBox_Search_Input_label"]) {
+html.xnote-spotlight ${SIDEBAR} form[role="search"]:has(.xnote-search-panel) div:has(> div > div > [data-testid="SearchBox_Search_Input_label"]) {
   border-radius: 22px 22px 0 0 !important; box-shadow: none !important; border-color: transparent !important;
 }
-/* X's panel is the list itself while it shows suggestions, and the list's parent while it shows
-   recent searches: the script marks whichever it is. */
+/* X's panel under the box is a different element for suggestions, recent searches and the empty
+   hint: the script marks whichever it is. */
 html.xnote-spotlight .xnote-search-panel {
   border-radius: 0 0 22px 22px !important; clip-path: inset(0 round 0 0 22px 22px);
   border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
@@ -116,8 +116,9 @@ export function installDock(store: Store, resume: Resume) {
     // A search or a picked suggestion opens another page.
     if (location.pathname + location.search !== searchPath) closeSearch()
     if (root.classList.contains('xnote-spotlight')) {
-      const list = document.querySelector<HTMLElement>(`${SIDEBAR} form[role="search"] [id^="typeaheadDropdown"]`)
-      const panel = list && getComputedStyle(list).position !== 'absolute' ? list.parentElement : list
+      // The panel is the one positioned element of the form: it floats below the box.
+      const form = document.querySelector(`${SIDEBAR} form[role="search"]`)
+      const panel = [...(form?.querySelectorAll('div') ?? [])].find((div) => getComputedStyle(div).position === 'absolute')
       const old = document.querySelector('.xnote-search-panel')
       if (old !== panel) old?.classList.remove('xnote-search-panel')
       panel?.classList.add('xnote-search-panel')
