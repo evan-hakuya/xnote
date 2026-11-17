@@ -12,16 +12,21 @@ const FEATHER = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http:
 // full navigation that look, measured from X's: a 68px column, a 52px Post button.
 const CSS = `
 #xnote-nav-toggle {
-  position: absolute; top: 8px; right: 4px; z-index: 1; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+  position: absolute; top: 8px; right: 4px; z-index: 1; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; opacity: 0.6;
 }
 #xnote-nav-toggle:hover { opacity: 1; background: color-mix(in srgb, currentColor 10%, transparent); }
 #xnote-nav-toggle[hidden] { display: none; }
-#xnote-nav-toggle svg { width: 18px; height: 18px; fill: currentColor; }
-/* The narrow column has little room beside the logo: a smaller button in its corner, clear of the bird. */
-html.xnote-nav-narrow #xnote-nav-toggle { top: 4px; right: 0; width: 20px; height: 20px; }
-html.xnote-nav-narrow #xnote-nav-toggle svg { width: 14px; height: 14px; }
+#xnote-nav-toggle svg { width: 20px; height: 20px; fill: currentColor; }
+/* The narrow column has no room beside the logo: the button gets a row of its own above it. */
+html.xnote-nav-narrow #xnote-nav-toggle { top: 4px; right: 16px; }
+html.xnote-nav-narrow header[role="banner"] h1 { margin-top: 44px !important; }
 html.xnote-nav-narrow #xnote-nav-toggle svg { transform: scaleX(-1); }
+/* X centres the navigation and the content together. The navigation keeps its place, and the
+   content takes the room it gave up (--xnote-nav-left is X's margin, set from script). */
+html.xnote-nav-narrow:not(.xnote-wide) header[role="banner"] {
+  flex-grow: 0 !important; width: calc(var(--xnote-nav-left, 0px) + 68px) !important;
+}
 /* The column, X's fixed layer in it, and the column on screen in that layer. */
 html.xnote-nav-narrow header[role="banner"] > div,
 html.xnote-nav-narrow header[role="banner"] > div > div,
@@ -51,6 +56,9 @@ export function installNavToggle(store: Store) {
     const values = store.get()
     const narrow = values.enabled && values.navNarrow
     root.classList.toggle('xnote-nav-narrow', narrow)
+    // X's layout is 1265px at most (navigation 275, content 990), centred in the window. Measured.
+    const left = `${Math.max(0, (root.clientWidth - 1265) / 2)}px`
+    if (root.style.getPropertyValue('--xnote-nav-left') !== left) root.style.setProperty('--xnote-nav-left', left)
     button.setAttribute('aria-label', t(narrow ? 'expandNav' : 'collapseNav'))
     button.title = button.getAttribute('aria-label')!
     // The column on screen: the child of X's fixed layer, which holds the logo, the items and the
