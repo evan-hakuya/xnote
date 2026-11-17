@@ -51,7 +51,9 @@ html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
 html.xnote-spotlight ${SIDEBAR} form[role="search"]:has([id^="typeaheadDropdown"]) div:has(> div > div > [data-testid="SearchBox_Search_Input_label"]) {
   border-radius: 22px 22px 0 0 !important; box-shadow: none !important; border-color: transparent !important;
 }
-html.xnote-spotlight ${SIDEBAR} form[role="search"] [id^="typeaheadDropdown"] {
+/* X's panel is the list itself while it shows suggestions, and the list's parent while it shows
+   recent searches: the script marks whichever it is. */
+html.xnote-spotlight .xnote-search-panel {
   border-radius: 0 0 22px 22px !important; clip-path: inset(0 round 0 0 22px 22px);
   border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
@@ -113,6 +115,13 @@ export function installDock(store: Store, resume: Resume) {
     if (!dock.isConnected) document.body.append(dock)
     // A search or a picked suggestion opens another page.
     if (location.pathname + location.search !== searchPath) closeSearch()
+    if (root.classList.contains('xnote-spotlight')) {
+      const list = document.querySelector<HTMLElement>(`${SIDEBAR} form[role="search"] [id^="typeaheadDropdown"]`)
+      const panel = list && getComputedStyle(list).position !== 'absolute' ? list.parentElement : list
+      const old = document.querySelector('.xnote-search-panel')
+      if (old !== panel) old?.classList.remove('xnote-search-panel')
+      panel?.classList.add('xnote-search-panel')
+    }
     const kind = feedKind(location.pathname)
     const values = store.get()
     search.hidden = !values.dockSearch
