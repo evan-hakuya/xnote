@@ -20,7 +20,6 @@ const SIDEBAR = '[data-testid="sidebarColumn"]'
 const CSS = `
 #xnote-dock { position: fixed; right: 20px; bottom: 79px; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
 #xnote-dock[hidden], #xnote-dock button[hidden], html.xnote-sheet #xnote-dock { display: none; }
-html.xnote-spotlight #xnote-dock { display: none; }
 #xnote-dock button {
   position: relative; width: 55px; height: 55px; display: grid; place-items: center; padding: 0; cursor: pointer;
   border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
@@ -46,6 +45,14 @@ html.xnote-spotlight.xnote-spotlight ${SIDEBAR} > * { visibility: hidden; }
 html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
   visibility: visible; position: fixed !important; top: 15vh; left: 50%; width: min(600px, 90vw); transform: translateX(-50%);
 }
+/* X's panel of recent searches, apart from the box as under X's own sidebar box. Its scroll bar
+   squares the right corners: clip it to the panel's rounded shape. */
+html.xnote-spotlight ${SIDEBAR} form[role="search"] div:has(> [id^="typeaheadDropdown"]) {
+  margin-top: 8px; clip-path: inset(0 round 8px);
+}
+/* X puts the navigation one layer above the main column, which holds the sidebar: lift the main
+   column so that the backdrop covers the navigation too. */
+html.xnote-spotlight main[role="main"] { z-index: 4 !important; }
 `
 
 /** Back to top and refresh, at the bottom right of the timelines. */
@@ -69,6 +76,7 @@ export function installDock(store: Store, resume: Resume) {
     ;(document.activeElement as HTMLElement | null)?.blur()
   }
   const search = button(SEARCH, t('search'), () => {
+    if (root.classList.contains('xnote-spotlight')) return closeSearch()
     const input = document.querySelector<HTMLInputElement>(`${SIDEBAR} [data-testid="SearchBox_Search_Input"]`)
     // X shows no sidebar in a narrow window: its Explore page has the search box then.
     if (!input) return document.querySelector<HTMLElement>('header[role="banner"] a[href="/explore"]')?.click()
@@ -76,11 +84,11 @@ export function installDock(store: Store, resume: Resume) {
     root.classList.add('xnote-spotlight')
     input.focus()
   })
-  // A click anywhere but the box closes it; X's dropdown is inside the form too. The navigation
-  // is above the backdrop, so a click there counts as well.
+  // A click anywhere but the box closes it; X's dropdown is inside the form too. The search button
+  // closes it itself.
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null
-    if (!target?.closest(`${SIDEBAR} form[role="search"]`)) closeSearch()
+    if (!target?.closest(`${SIDEBAR} form[role="search"]`) && !search.contains(target)) closeSearch()
   }, true)
   document.addEventListener('keydown', (event) => event.key === 'Escape' && closeSearch(), true)
   // Only the page moves: X asks for newer posts at the top as it always does, and shows its pill.
