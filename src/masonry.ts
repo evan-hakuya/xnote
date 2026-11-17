@@ -116,6 +116,9 @@ export function installMasonry(store: Store) {
   const pins = new Map<string, number>()
   let pinnedColumns = 0
   let restore: { top: number; until: number } | undefined
+  // A card kept where it was on screen after the number of columns changed, until the user moves.
+  let hold: { cell: HTMLElement; top: number; until: number } | undefined
+  for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) addEventListener(type, () => void (hold = undefined), { passive: true })
   // Whether a cell is a later post of a thread, from X's data of the timeline entry (private, checked).
   const later = new WeakMap<HTMLElement, boolean>()
   const isLater = (cell: HTMLElement) => {
@@ -171,6 +174,20 @@ export function installMasonry(store: Store) {
     const { cardMinWidth, cardGap: gap } = store.get()
     // The container has a padding of one gap on each side.
     const columns = columnsFor(container.clientWidth - 2 * gap, cardMinWidth, gap)
+    // A new number of columns moves every card. Keep the one the user is at in its place: the
+    // earliest post of the feed that starts inside the window, measured before the grid changes.
+    // The earliest rather than the highest, so that switching back keeps the same post.
+    if (pinnedColumns && columns !== pinnedColumns && !restore) {
+      for (const cell of all) {
+        if (!cell.classList.contains('xnote-card')) continue
+        const top = cell.getBoundingClientRect().top
+        if (top >= 0 && top < innerHeight) {
+          // The cards settle over a few layouts as their new heights come in: hold it a moment.
+          hold = { cell, top, until: Date.now() + 1500 }
+          break
+        }
+      }
+    }
     container.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`
     // Empty cells and the cells that the CSS hides take no part in the placement.
     const cells = all.filter((cell) => cell.offsetHeight > 0 || void (cell.style.gridArea = '1 / 1'))
@@ -197,6 +214,8 @@ export function installMasonry(store: Store) {
       cells[index]!.style.marginTop = shift ? `${shift}px` : ''
       if (column && keys[index]) pins.set(keys[index], column)
     })
+    if (hold && (Date.now() > hold.until || !hold.cell.isConnected)) hold = undefined
+    if (hold) scrollBy(0, hold.cell.getBoundingClientRect().top - hold.top)
     if (restore) {
       // Wait until enough posts are rendered again, but not forever.
       if (document.documentElement.scrollHeight - innerHeight >= restore.top) {
