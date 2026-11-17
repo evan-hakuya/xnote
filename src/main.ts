@@ -5,6 +5,7 @@ import { installMasonry } from './masonry.ts'
 import { installOverlay } from './overlay.ts'
 import { installResume } from './resume.ts'
 import { installDock } from './dock.ts'
+import { installNavToggle } from './navtoggle.ts'
 import { createStore } from './settings.ts'
 import { installTweaks } from './tweaks.ts'
 
@@ -22,3 +23,4 @@ installTweaks(store)
 installFilters(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null), resume)
 installDock(store, resume)
+installNavToggle(store)

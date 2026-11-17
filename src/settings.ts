@@ -8,6 +8,7 @@ export const defaults = {
   dockSearch: true,
   dockTop: true,
   dockRefresh: true,
+  navNarrow: false, // also switched by a button at the top right of the navigation
   resumeForYou: false,
   resumeFollowing: false,
   resumeLists: false,

@@ -66,7 +66,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
           'hideXnoteNav',
         ],
       },
-      { title: 'subPageParts', keys: ['hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
+      { title: 'subPageParts', keys: ['navNarrow', 'hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
     ],
   },
   { title: 'catPromo', sections: [{ keys: ['hideGrok', 'hideUpsells'] }] },
