@@ -19,7 +19,7 @@ const SIDEBAR = '[data-testid="sidebarColumn"]'
 // moves it down when that drawer is hidden.
 const CSS = `
 #xnote-dock { position: fixed; right: 20px; bottom: 79px; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
-#xnote-dock[hidden], html.xnote-sheet #xnote-dock { display: none; }
+#xnote-dock[hidden], #xnote-dock button[hidden], html.xnote-sheet #xnote-dock { display: none; }
 html.xnote-spotlight #xnote-dock { display: none; }
 #xnote-dock button {
   position: relative; width: 55px; height: 55px; display: grid; place-items: center; padding: 0; cursor: pointer;
@@ -68,7 +68,7 @@ export function installDock(store: Store, resume: Resume) {
     root.classList.remove('xnote-spotlight')
     ;(document.activeElement as HTMLElement | null)?.blur()
   }
-  button(SEARCH, t('search'), () => {
+  const search = button(SEARCH, t('search'), () => {
     const input = document.querySelector<HTMLInputElement>(`${SIDEBAR} [data-testid="SearchBox_Search_Input"]`)
     // X shows no sidebar in a narrow window: its Explore page has the search box then.
     if (!input) return document.querySelector<HTMLElement>('header[role="banner"] a[href="/explore"]')?.click()
@@ -84,7 +84,7 @@ export function installDock(store: Store, resume: Resume) {
   }, true)
   document.addEventListener('keydown', (event) => event.key === 'Escape' && closeSearch(), true)
   // Only the page moves: X asks for newer posts at the top as it always does, and shows its pill.
-  button(UP, t('backToTop'), () => scrollTo(0, 0))
+  const top = button(UP, t('backToTop'), () => scrollTo(0, 0))
   // shortcut: a reload of the page, X has no public way to load a timeline again; find X's own
   // refresh of a timeline if the reload feels slow.
   const refresh = button(REFRESH, t('refresh'), async () => {
@@ -99,7 +99,11 @@ export function installDock(store: Store, resume: Resume) {
     // A search or a picked suggestion opens another page.
     if (location.pathname + location.search !== searchPath) closeSearch()
     const kind = feedKind(location.pathname)
-    dock.hidden = !store.get().enabled || !store.get().floatingButtons || kind === null || kind === 'keep'
+    const values = store.get()
+    search.hidden = !values.dockSearch
+    top.hidden = !values.dockTop
+    refresh.hidden = !values.dockRefresh
+    dock.hidden = !values.enabled || kind === null || kind === 'keep' || (search.hidden && top.hidden && refresh.hidden)
     if (dock.hidden) return
     // X's theme: the page colour of <body>, the accent of its Post button.
     const body = getComputedStyle(document.body)

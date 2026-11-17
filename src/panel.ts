@@ -34,7 +34,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
       { title: 'subPopup', keys: ['detailOverlay'] },
       { title: 'subMedia', keys: ['hoverPlay', 'mediaGrid'] },
       { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
-      { title: 'subDock', keys: ['floatingButtons'] },
+      { title: 'subDock', keys: ['dockSearch', 'dockTop', 'dockRefresh'] },
     ],
   },
   {
