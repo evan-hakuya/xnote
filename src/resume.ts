@@ -176,7 +176,8 @@ export function installResume(store: Store) {
   const copies = new Map<string, Saved>()
   const db = database()
   // Only this account's copies that have not expired are loaded.
-  void db
+  let loaded = false
+  const loading = db
     .then(
       (base) =>
         new Promise<void>((resolve) => {
@@ -185,13 +186,15 @@ export function installResume(store: Store) {
             const cursor = request.result
             if (!cursor) return resolve()
             const [owner, key] = String(cursor.key).split('|')
-            if (owner === account && Date.now() - (cursor.value as Saved).savedAt < MAX_AGE) copies.set(key!, cursor.value)
+            // A copy made since the page loaded is newer than the stored one.
+            if (owner === account && Date.now() - (cursor.value as Saved).savedAt < MAX_AGE && !copies.has(key!)) copies.set(key!, cursor.value)
             cursor.continue()
           }
           request.onerror = () => resolve()
         }),
     )
     .catch(() => undefined)
+    .then(() => void (loaded = true))
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   // The posts the user saw: at least half of one, or 40% of the window for a tall one, once the
@@ -264,7 +267,7 @@ export function installResume(store: Store) {
     this.xnoteUrl = String(args[1])
     return (open as any).apply(this, args)
   }
-  proto.send = function (this: Request, body?: any) {
+  proto.send = function xnoteSend(this: Request, body?: any) {
     const url = this.xnoteUrl ?? ''
     const op = /\/graphql\/[^/]+\/(\w+)/.exec(url)?.[1]
     let variables: any
@@ -279,6 +282,9 @@ export function installResume(store: Store) {
     active = key
     const first = variables?.requestContext === 'launch'
     const cursor = typeof variables?.cursor === 'string' ? variables.cursor : undefined
+    // X's first request can come before the stored copies are read, on a busy page: it waits for
+    // them, or X gets its newest posts and the copy is lost.
+    if (first && !loaded) return void loading.then(() => xnoteSend.call(this, body))
 
     if (first && fresh(key)) {
       // X gets the copy; the posts of its own answer wait for its next request for newer posts.
