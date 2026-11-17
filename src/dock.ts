@@ -53,6 +53,8 @@ html.xnote-spotlight ${SIDEBAR} form[role="search"] div:has(> [id^="typeaheadDro
 /* X puts the navigation one layer above the main column, which holds the sidebar: lift the main
    column so that the backdrop covers the navigation too. */
 html.xnote-spotlight main[role="main"] { z-index: 4 !important; }
+/* The buttons are under the backdrop as well: the same dimming, and a click on them closes it. */
+html.xnote-spotlight #xnote-dock { filter: brightness(0.6); pointer-events: none; }
 `
 
 /** Back to top and refresh, at the bottom right of the timelines. */
