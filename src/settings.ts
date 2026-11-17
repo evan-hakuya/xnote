@@ -5,6 +5,7 @@ export const defaults = {
   masonrySearch: true,
   detailOverlay: true,
   hoverPlay: false,
+  floatingButtons: true,
   resumeForYou: false,
   resumeFollowing: false,
   resumeLists: false,

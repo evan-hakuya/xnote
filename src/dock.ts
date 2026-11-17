@@ -9,6 +9,10 @@ type Resume = { keepsHere(): boolean; clearHere(): Promise<unknown> }
 const UP = 'M12 3.59l7.457 7.45-1.414 1.42L13 7.41V21h-2V7.41l-5.043 5.05-1.414-1.42L12 3.59z'
 const REFRESH =
   'M12 4c-4.42 0-8 3.58-8 8s3.58 8 8 8c3.73 0 6.86-2.55 7.75-6h-2.08c-.82 2.33-3.04 4-5.67 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35C16.2 4.9 14.21 4 12 4z'
+// X's search icon.
+const SEARCH =
+  'M10.25 3.75c-3.59 0-6.5 2.91-6.5 6.5s2.91 6.5 6.5 6.5c1.795 0 3.419-.726 4.596-1.904 1.178-1.177 1.904-2.801 1.904-4.596 0-3.59-2.91-6.5-6.5-6.5zm-8.5 6.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5c0 1.986-.682 3.815-1.824 5.262l4.781 4.781-1.414 1.414-4.781-4.781c-1.447 1.142-3.276 1.824-5.262 1.824-4.694 0-8.5-3.806-8.5-8.5z'
+const SIDEBAR = '[data-testid="sidebarColumn"]'
 
 // X's own floating buttons (the chat drawer): 55px, frosted page colour. Measured; round, not X's 16px corners.
 // The tooltip is X's: black at 80%, white 11px text. The dock sits above the chat drawer; tweaks.ts
@@ -16,6 +20,7 @@ const REFRESH =
 const CSS = `
 #xnote-dock { position: fixed; right: 20px; bottom: 79px; z-index: 1; display: flex; flex-direction: column; gap: 12px; }
 #xnote-dock[hidden], html.xnote-sheet #xnote-dock { display: none; }
+html.xnote-spotlight #xnote-dock { display: none; }
 #xnote-dock button {
   position: relative; width: 55px; height: 55px; display: grid; place-items: center; padding: 0; cursor: pointer;
   border-radius: 50%; border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
@@ -29,6 +34,17 @@ const CSS = `
   content: attr(aria-label); position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%);
   padding: 4px 8px; border-radius: 16px; background: rgba(0, 0, 0, 0.8); color: #fff;
   font: 11px/12px TwitterChirp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; white-space: nowrap; pointer-events: none;
+}
+/* Search: X's own search box of the sidebar, with its recent searches and suggestions, shown in the
+   middle of the window. The sidebar becomes the dimmed backdrop; the rest of it stays invisible.
+   The class twice outweighs the masonry, which hides the sidebar. */
+html.xnote-spotlight.xnote-spotlight ${SIDEBAR} {
+  display: flex !important; position: fixed !important; inset: 0 !important; width: auto !important; max-width: none !important;
+  height: auto !important; margin: 0 !important; padding: 0 !important; z-index: 1000 !important; background: rgba(0, 0, 0, 0.4);
+}
+html.xnote-spotlight.xnote-spotlight ${SIDEBAR} > * { visibility: hidden; }
+html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
+  visibility: visible; position: fixed !important; top: 15vh; left: 50%; width: min(600px, 90vw); transform: translateX(-50%);
 }
 `
 
@@ -45,6 +61,28 @@ export function installDock(store: Store, resume: Resume) {
     dock.append(element)
     return element
   }
+  const root = document.documentElement
+  let searchPath = ''
+  const closeSearch = () => {
+    if (!root.classList.contains('xnote-spotlight')) return
+    root.classList.remove('xnote-spotlight')
+    ;(document.activeElement as HTMLElement | null)?.blur()
+  }
+  button(SEARCH, t('search'), () => {
+    const input = document.querySelector<HTMLInputElement>(`${SIDEBAR} [data-testid="SearchBox_Search_Input"]`)
+    // X shows no sidebar in a narrow window: its Explore page has the search box then.
+    if (!input) return document.querySelector<HTMLElement>('header[role="banner"] a[href="/explore"]')?.click()
+    searchPath = location.pathname + location.search
+    root.classList.add('xnote-spotlight')
+    input.focus()
+  })
+  // A click anywhere but the box closes it; X's dropdown is inside the form too. The navigation
+  // is above the backdrop, so a click there counts as well.
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null
+    if (!target?.closest(`${SIDEBAR} form[role="search"]`)) closeSearch()
+  }, true)
+  document.addEventListener('keydown', (event) => event.key === 'Escape' && closeSearch(), true)
   // Only the page moves: X asks for newer posts at the top as it always does, and shows its pill.
   button(UP, t('backToTop'), () => scrollTo(0, 0))
   // shortcut: a reload of the page, X has no public way to load a timeline again; find X's own
@@ -58,8 +96,10 @@ export function installDock(store: Store, resume: Resume) {
   const sync = () => {
     if (!document.body) return
     if (!dock.isConnected) document.body.append(dock)
+    // A search or a picked suggestion opens another page.
+    if (location.pathname + location.search !== searchPath) closeSearch()
     const kind = feedKind(location.pathname)
-    dock.hidden = !store.get().enabled || kind === null || kind === 'keep'
+    dock.hidden = !store.get().enabled || !store.get().floatingButtons || kind === null || kind === 'keep'
     if (dock.hidden) return
     // X's theme: the page colour of <body>, the accent of its Post button.
     const body = getComputedStyle(document.body)
