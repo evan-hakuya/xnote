@@ -362,20 +362,39 @@ export function installResume(store: Store) {
     still = setTimeout(place, 300)
   }, { passive: true })
 
+  const remove = (key: string) => {
+    clearTimeout(timers.get(key))
+    copies.delete(key)
+    return db
+      .then((base) => new Promise<void>((resolve) => {
+        const transaction = base.transaction(STORE, 'readwrite')
+        transaction.objectStore(STORE).delete(`${account}|${key}`)
+        transaction.oncomplete = transaction.onerror = () => resolve()
+      }))
+      .catch(() => undefined)
+  }
+  // The copies a reload of this page would show: the timeline on screen, or every switched-on one
+  // when that is unknown (right after a tab switch).
+  const here = () => {
+    if (location.pathname !== '/home') return []
+    return (active ? [active] : [...copies.keys()]).filter((key) => on(timelineToggle(key)))
+  }
+
   return {
     /** The posts kept for one switch; the pinned lists together. */
     count: (toggle: Switch) => keysOf(toggle).reduce((sum, key) => sum + postsIn(copies.get(key)!), 0),
     clear(toggle: Switch) {
-      for (const key of keysOf(toggle)) {
-        clearTimeout(timers.get(key))
-        copies.delete(key)
-        void db.then((base) => base.transaction(STORE, 'readwrite').objectStore(STORE).delete(`${account}|${key}`)).catch(() => undefined)
-      }
+      for (const key of keysOf(toggle)) void remove(key)
     },
+    /** Whether a reload of this page shows a kept copy instead of X's newest posts. */
+    keepsHere: () => location.pathname === '/home' && (active ? on(timelineToggle(active)) : RESUME_SWITCHES.some(on)),
+    /** Forgets the copies that a reload of this page would show. */
+    clearHere: () => Promise.all(here().map(remove)),
   }
 }
 
 export type ResumeSwitch = Switch
+const RESUME_SWITCHES: Switch[] = ['resumeForYou', 'resumeFollowing', 'resumeLists']
 const timelineToggle = (key: string): Switch =>
   key === 'forYou' ? 'resumeForYou' : key === 'following' ? 'resumeFollowing' : 'resumeLists'
 

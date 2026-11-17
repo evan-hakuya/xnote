@@ -81,7 +81,8 @@ const rules: Partial<Record<Switch, string>> = {
   // panel.ts marks the page once the manager's menu has the entry, so the panel stays reachable.
   hideXnoteNav: hide('html.xnote-menu #xnote-entry'),
   // Hidden, not removed: X keeps using the drawer's node.
-  hideChatDrawer: 'div:is([data-testid="DMDrawer"], [data-testid="chat-drawer-root"]) { visibility: hidden; }',
+  hideChatDrawer: `div:is([data-testid="DMDrawer"], [data-testid="chat-drawer-root"]) { visibility: hidden; }
+html #xnote-dock { bottom: 12px; }`,
   hideViews: hide(
     '[data-testid="tweet"][tabindex="0"] [role="group"] > div:has(> a[href$="/analytics"])',
     '[aria-modal="true"] > div > div:first-of-type [role="group"] > div:has(> a[href$="/analytics"])',

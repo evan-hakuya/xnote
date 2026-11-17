@@ -4,6 +4,7 @@ import { installPanel } from './panel.ts'
 import { installMasonry } from './masonry.ts'
 import { installOverlay } from './overlay.ts'
 import { installResume } from './resume.ts'
+import { installDock } from './dock.ts'
 import { createStore } from './settings.ts'
 import { installTweaks } from './tweaks.ts'
 
@@ -20,3 +21,4 @@ installHoverPlay(store)
 installTweaks(store)
 installFilters(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null), resume)
+installDock(store, resume)

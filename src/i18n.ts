@@ -2,6 +2,9 @@ const messages = {
   en: {
     settings: 'xnote settings',
     close: 'Close',
+    backToTop: 'Back to top',
+    refresh: 'Refresh',
+    clearAndRefresh: 'Clear the browsing history and refresh',
     hideSide: 'Hide',
     showSide: 'Show',
     enabled: 'Enable xnote',
@@ -93,6 +96,9 @@ const messages = {
   'zh-Hans': {
     settings: 'xnote 设置',
     close: '关闭',
+    backToTop: '回到顶部',
+    refresh: '刷新',
+    clearAndRefresh: '清空浏览历史并刷新',
     hideSide: '隐藏',
     showSide: '显示',
     enabled: '启用 xnote',
@@ -184,6 +190,9 @@ const messages = {
   'zh-Hant': {
     settings: 'xnote 設定',
     close: '關閉',
+    backToTop: '回到頂部',
+    refresh: '重新整理',
+    clearAndRefresh: '清除瀏覽紀錄並重新整理',
     hideSide: '隱藏',
     showSide: '顯示',
     enabled: '啟用 xnote',
