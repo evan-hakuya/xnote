@@ -1,6 +1,6 @@
-import { columnsFor, placeCards } from './layout.ts'
+import { columnsFor, mergeReadingOrder, placeCards, readingOrder } from './layout.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
-import { fibers } from './react.ts'
+import { fibers, isNewPostsControl } from './react.ts'
 import { feedKind, type FeedKind } from './route.ts'
 import type { Settings, Store } from './settings.ts'
 
@@ -48,6 +48,7 @@ html.xnote-profile [data-testid="primaryColumn"] div:has(> div > div > div > div
   align-items: start;
   min-height: 0 !important;
   padding: var(--xnote-gap);
+  overflow-anchor: none;
 }
 .xnote-grid > * { position: static !important; transform: none !important; top: auto !important; min-width: 0; }
 /* X builds the feed again when the user comes back to it. Posts that have no place yet would
@@ -78,7 +79,7 @@ html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellI
 .xnote-grid div[role="link"] div:has(> div > div > [data-testid="article-cover-image"]) { flex-direction: column !important; }
 /* Cards far from the window keep their size but the browser skips their content. The height is
    pinned: content-visibility:auto changes it and makes X measure its posts again and again. */
-.xnote-grid > .xnote-far { content-visibility: hidden; contain-intrinsic-height: var(--xnote-far-height); }
+.xnote-grid > .xnote-far { content-visibility: hidden; box-sizing: border-box; height: var(--xnote-far-height); }
 `
 
 // X's private React internals (ADR-0002). Everything read from them is checked before use.
@@ -115,9 +116,39 @@ export function installMasonry(store: Store) {
   // columns each time a height changes or X builds the feed again, which looks like a reload.
   const pins = new Map<string, number>()
   let pinnedColumns = 0
-  let restore: { top: number; until: number } | undefined
-  // A card kept where it was on screen after the number of columns changed, until the user moves.
-  let hold: { cell: HTMLElement; top: number; until: number } | undefined
+  let layoutWidth = 0
+  let order: HTMLElement[] = []
+  type Anchor = { key: string; top: number }
+  const arrangements = new Map<string, { keys: string[]; starts: Set<string>; columns: number; anchor?: Anchor | undefined }>()
+  const starts = new Set<HTMLElement>()
+  const bounds = new Map<HTMLElement, { top: number; bottom: number; left: number; key: string | undefined }>()
+  const keyOf = (cell: HTMLElement) => {
+    const post = cell.querySelector('time')?.closest('a')?.getAttribute('href')
+    return post ? `${feedKey}|${post}` : undefined
+  }
+  const remember = () => {
+    const saved = arrangements.get(feedKey)
+    if (!saved) return
+    let nearest: Anchor | undefined
+    for (const rect of bounds.values()) {
+      const top = rect.top - scrollY
+      const key = rect.key
+      if (key && rect.bottom - scrollY > 54 && top < innerHeight && (!nearest || Math.abs(top - 54) < Math.abs(nearest.top - 54))) nearest = { key, top }
+    }
+    saved.anchor = nearest
+  }
+  const capture = () => {
+    bounds.clear()
+    for (const cell of order) {
+      const rect = cell.getBoundingClientRect()
+      bounds.set(cell, { top: rect.top + scrollY, bottom: rect.bottom + scrollY, left: rect.left, key: keyOf(cell) })
+    }
+    remember()
+  }
+  let restore: { top: number; until: number; anchor?: Anchor | undefined } | undefined
+  let updating = false
+  // Keep the visible band in place while images settle, until the user moves.
+  let hold: { cell: HTMLElement; top: number } | undefined
   for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) addEventListener(type, () => void (hold = undefined), { passive: true })
   // Whether a cell is a later post of a thread, from X's data of the timeline entry (private, checked).
   const later = new WeakMap<HTMLElement, boolean>()
@@ -174,37 +205,65 @@ export function installMasonry(store: Store) {
     const { cardMinWidth, cardGap: gap } = store.get()
     // The container has a padding of one gap on each side.
     const columns = columnsFor(container.clientWidth - 2 * gap, cardMinWidth, gap)
-    // A new number of columns moves every card. Keep the one the user is at in its place: the
-    // earliest post of the feed that starts inside the window, measured before the grid changes.
-    // The earliest rather than the highest, so that switching back keeps the same post.
-    if (pinnedColumns && columns !== pinnedColumns && !restore) {
+    const reflow = layoutWidth !== 0 && container.clientWidth !== layoutWidth && !restore
+    layoutWidth = container.clientWidth
+    container.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`
+    if (reflow) {
+      // A cached height from the old card width is no longer valid.
       for (const cell of all) {
-        if (!cell.classList.contains('xnote-card')) continue
-        const top = cell.getBoundingClientRect().top
-        if (top >= 0 && top < innerHeight) {
-          // The cards settle over a few layouts as their new heights come in: hold it a moment.
-          hold = { cell, top, until: Date.now() + 1500 }
-          break
-        }
+        cell.classList.remove('xnote-far')
+        far.unobserve(cell)
+        far.observe(cell)
       }
     }
-    container.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`
     // Empty cells and the cells that the CSS hides take no part in the placement.
-    const cells = all.filter((cell) => cell.offsetHeight > 0 || void (cell.style.gridArea = '1 / 1'))
+    let cells = all.filter((cell) => cell.offsetHeight > 0 || void (cell.style.gridArea = '1 / 1'))
+    // Back from another page, restore the same reading order as the saved scroll position.
+    const saved = !order.length && arrangements.get(feedKey)
+    if (saved) {
+      const byKey = new Map(cells.map((cell) => [keyOf(cell), cell]))
+      order = saved.keys.flatMap((key) => byKey.has(key) ? [byKey.get(key)!] : [])
+      for (const key of saved.starts) if (byKey.has(key)) starts.add(byKey.get(key)!)
+      pinnedColumns = saved.columns
+    }
+    // New X nodes join beside their timeline neighbours; never move X's React-owned DOM nodes.
+    order = mergeReadingOrder(cells, order, (cell) => !cell.classList.contains('xnote-card'))
+    cells = [...order]
     if (columns !== pinnedColumns) pins.clear()
     pinnedColumns = columns
-    const keys = cells.map((cell) => {
-      const post = cell.querySelector('time')?.closest('a')?.getAttribute('href')
-      return post ? `${feedKey}|${post}` : undefined
-    })
-    const items = cells.map((cell, index) => {
+    let keys = cells.map(keyOf)
+    let items = cells.map((cell, index) => {
       const full = !cell.classList.contains('xnote-card')
       // Only when the post before it is shown, and is the card directly above.
-      const before = cells[index - 1]
-      const joined = !full && before === cell.previousElementSibling && before?.classList.contains('xnote-card') === true && isLater(cell)
+      const before = cell.previousElementSibling
+      const joined = !full && before === cells[index - 1] && before?.classList.contains('xnote-card') === true && isLater(cell)
       cell.classList.toggle('xnote-joined', joined)
-      return { height: cell.offsetHeight, full, joined, column: keys[index] ? pins.get(keys[index]) : undefined }
+      return { height: cell.offsetHeight, full, joined, column: keys[index] ? pins.get(keys[index]) : undefined, start: starts.has(cell) }
     })
+    if (reflow) {
+      const screenTop = 54 // X's sticky timeline tabs.
+      const reading = readingOrder(cells.map((cell, i) => {
+        const rect = bounds.get(cell) ?? cell.getBoundingClientRect()
+        const offset = bounds.has(cell) ? scrollY : 0
+        return { top: rect.top - offset, bottom: rect.bottom - offset, left: rect.left, joined: items[i]!.joined, full: items[i]!.full }
+      }), screenTop, innerHeight)
+      starts.clear()
+      const first = reading.find(({ band, index }) => band === 1 && !items[index]!.full)
+      if (first) {
+        const cell = cells[first.index]!
+        const top = bounds.has(cell) ? bounds.get(cell)!.top - scrollY : cell.getBoundingClientRect().top
+        hold = { cell, top: Math.max(screenTop, top) }
+      }
+      items = reading.map(({ index, band }, i) => {
+        const start = band === 1 && i > 0 && reading[i - 1]!.band !== 1
+        if (start) starts.add(cells[index]!)
+        return { ...items[index]!, column: undefined, start }
+      })
+      keys = reading.map(({ index }) => keys[index])
+      cells = reading.map(({ index }) => cells[index]!)
+      order = [...cells]
+      pins.clear()
+    }
     const placed = placeCards(items, columns, UNIT, gap)
     let shift = 0
     placed.forEach(({ column, row, span }, index) => {
@@ -214,15 +273,24 @@ export function installMasonry(store: Store) {
       cells[index]!.style.marginTop = shift ? `${shift}px` : ''
       if (column && keys[index]) pins.set(keys[index], column)
     })
-    if (hold && (Date.now() > hold.until || !hold.cell.isConnected)) hold = undefined
-    if (hold) scrollBy(0, hold.cell.getBoundingClientRect().top - hold.top)
+    arrangements.set(feedKey, {
+      keys: keys.filter((key) => key !== undefined),
+      starts: new Set(keys.flatMap((key, i) => key !== undefined && starts.has(cells[i]!) ? [key] : [])),
+      columns,
+      anchor: arrangements.get(feedKey)?.anchor,
+    })
     if (restore) {
+      const cell = restore.anchor && cells[keys.indexOf(restore.anchor.key)]
       // Wait until enough posts are rendered again, but not forever.
-      if (document.documentElement.scrollHeight - innerHeight >= restore.top) {
-        scrollTo(0, restore.top)
+      if (cell || document.documentElement.scrollHeight - innerHeight >= restore.top) {
+        if (cell && restore.anchor) hold = { cell, top: restore.anchor.top }
+        else scrollTo(0, restore.top)
         restore = undefined
       } else if (Date.now() > restore.until) restore = undefined
     }
+    if (hold && !hold.cell.isConnected) hold = undefined
+    if (hold) scrollBy(0, hold.cell.getBoundingClientRect().top - hold.top)
+    capture()
     loadMore()
   }
   const queueLayout = () => {
@@ -257,7 +325,17 @@ export function installMasonry(store: Store) {
 
   const onScroll = () => {
     const onFeed = container?.isConnected && feedKind(location.pathname) !== null
-    if (onFeed && !restore) positions.set(feedKey, scrollY)
+    if (onFeed && !restore && (!updating || scrollY === 0)) {
+      if (scrollY === 0) updating = false
+      // Reading-band alignment is temporary: at the top every column starts at the top again.
+      if (scrollY === 0 && starts.size) {
+        starts.clear()
+        hold = undefined
+        queueLayout()
+      }
+      positions.set(feedKey, scrollY)
+      remember()
+    }
     loadMore()
   }
 
@@ -277,6 +355,11 @@ export function installMasonry(store: Store) {
     const previous = scroller
     container = scroller = null
     restore = undefined
+    hold = undefined
+    order = []
+    starts.clear()
+    bounds.clear()
+    layoutWidth = pinnedColumns = 0
     previous?._update?.() // lets X go back to rendering only the posts near the viewport
   }
 
@@ -315,7 +398,7 @@ export function installMasonry(store: Store) {
     scroller = internals.scroller
     feedKey = String(scroller.props?.cacheKey ?? location.pathname)
     const top = positions.get(feedKey)
-    restore = top ? { top, until: Date.now() + 3000 } : undefined
+    restore = top && !updating ? { top, until: Date.now() + 3000, anchor: arrangements.get(feedKey)?.anchor } : undefined
     patch(scroller)
     container.classList.add('xnote-grid')
     children.observe(container, { childList: true })
@@ -325,10 +408,25 @@ export function installMasonry(store: Store) {
   }
 
   addStyle(CSS)
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null
+    if (!container?.isConnected || !isNewPostsControl(target)) return
+    // This is a new start, not a return to the old feed, even if X rebuilds it later.
+    updating = true
+    restore = hold = undefined
+    positions.delete(feedKey)
+    arrangements.delete(feedKey)
+    pins.clear()
+    starts.clear()
+    order = []
+    bounds.clear()
+    layoutWidth = pinnedColumns = 0
+    queueLayout()
+  }, true)
   onPageChange(sync)
   addEventListener('resize', queuePageCheck)
   addEventListener('scroll', onScroll, { passive: true })
-  store.subscribe(() => (queuePageCheck(), queueLayout()))
+  store.subscribe(() => (capture(), queuePageCheck(), queueLayout()))
 
   return { isBroken: () => broken }
 }

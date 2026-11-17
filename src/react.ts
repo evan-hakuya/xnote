@@ -8,3 +8,10 @@ export function fibers(element: object) {
   for (let fiber = key ? (element as any)[key] : null; fiber && chain.length < 300; fiber = fiber.return) chain.push(fiber)
   return chain
 }
+
+/** X's floating new-post pill and the inline control are the same timeline action. */
+export function isNewPostsControl(target: Element | null) {
+  if (target?.closest('[data-testid="pillLabel"]')) return true
+  const cell = target?.closest('[data-testid="cellInnerDiv"]')
+  return !!cell && !cell.querySelector('article') && fibers(cell).some((fiber) => fiber.memoizedProps?.item?.id === 'newEntriesItem')
+}

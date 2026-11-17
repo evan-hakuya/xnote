@@ -1,5 +1,5 @@
 import { onPageChange } from './page.ts'
-import { fibers } from './react.ts'
+import { fibers, isNewPostsControl } from './react.ts'
 import type { Settings, Store } from './settings.ts'
 
 /**
@@ -335,10 +335,16 @@ export function installResume(store: Store) {
     // A tab without a new request shows a timeline that X kept in memory: which one is unknown.
     if (target?.closest('[data-testid="primaryColumn"] [role="tab"]')) active = null
     // X's pill and its "Show 28 posts" line put the newer posts on the page.
-    const pill = target?.closest('[data-testid="pillLabel"], [data-testid="cellInnerDiv"]:not(:has(article)) [role="button"]')
-    if (!pill || !/\d/.test(pill.textContent ?? '') || !active) return
+    if (!isNewPostsControl(target)) return
+    restore = undefined
+    if (!active) return
     const saved = copies.get(active)
-    if (saved && commit(saved, Date.now())) save(active)
+    if (saved) {
+      saved.scroll = 0
+      saved.anchor = undefined
+      commit(saved, Date.now())
+      save(active)
+    }
   }, true)
 
   // Where the user is, once the page has stopped moving.
