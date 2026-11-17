@@ -51,8 +51,8 @@ html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
 html.xnote-spotlight ${SIDEBAR} form[role="search"]:has([id^="typeaheadDropdown"]) div:has(> div > div > [data-testid="SearchBox_Search_Input_label"]) {
   border-radius: 22px 22px 0 0 !important; box-shadow: none !important; border-color: transparent !important;
 }
-html.xnote-spotlight ${SIDEBAR} form[role="search"] div:has(> [id^="typeaheadDropdown"]) {
-  margin-top: 0; border-radius: 0 0 22px 22px; clip-path: inset(0 round 0 0 22px 22px);
+html.xnote-spotlight ${SIDEBAR} form[role="search"] [id^="typeaheadDropdown"] {
+  border-radius: 0 0 22px 22px !important; clip-path: inset(0 round 0 0 22px 22px);
   border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 /* X puts the navigation one layer above the main column, which holds the sidebar: lift the main
