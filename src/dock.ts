@@ -45,10 +45,15 @@ html.xnote-spotlight.xnote-spotlight ${SIDEBAR} > * { visibility: hidden; }
 html.xnote-spotlight.xnote-spotlight ${SIDEBAR} form[role="search"] {
   visibility: visible; position: fixed !important; top: 15vh; left: 50%; width: min(600px, 90vw); transform: translateX(-50%);
 }
-/* X's panel of recent searches, apart from the box as under X's own sidebar box. Its scroll bar
-   squares the right corners: clip it to the panel's rounded shape. */
+/* The box and X's panel of recent searches below it are one card: the box keeps its round top,
+   the panel continues it with the same round bottom, a line between them. The panel's scroll bar
+   squares its corners, so it is clipped to that shape. */
+html.xnote-spotlight ${SIDEBAR} form[role="search"]:has([id^="typeaheadDropdown"]) div:has(> div > div > [data-testid="SearchBox_Search_Input_label"]) {
+  border-radius: 22px 22px 0 0 !important; box-shadow: none !important; border-color: transparent !important;
+}
 html.xnote-spotlight ${SIDEBAR} form[role="search"] div:has(> [id^="typeaheadDropdown"]) {
-  margin-top: 8px; clip-path: inset(0 round 8px);
+  margin-top: 0; border-radius: 0 0 22px 22px; clip-path: inset(0 round 0 0 22px 22px);
+  border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent);
 }
 /* X puts the navigation one layer above the main column, which holds the sidebar: lift the main
    column so that the backdrop covers the navigation too. */
