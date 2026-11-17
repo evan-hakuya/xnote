@@ -22,6 +22,10 @@ const CSS = `
 html.xnote-nav-narrow #xnote-nav-toggle { top: 4px; right: 16px; }
 html.xnote-nav-narrow header[role="banner"] h1 { margin-top: 44px !important; }
 html.xnote-nav-narrow #xnote-nav-toggle svg { transform: scaleX(-1); }
+/* X animates the column's width. Its box snaps to the new width while the column, aligned to its
+   right, grows or shrinks from the other side, so the navigation jumps left and back; and the
+   masonry would measure a column half way. */
+html.xnote-on header[role="banner"] > div { transition: none !important; }
 /* X centres the navigation and the content together. The navigation keeps its place, and the
    content takes the room it gave up (--xnote-nav-left is X's margin, set from script). */
 html.xnote-nav-narrow:not(.xnote-wide) header[role="banner"] {
