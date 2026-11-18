@@ -18,9 +18,9 @@ html.xnote-overlay ${VIEWER} {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  background: rgb(0 0 0 / 0.55);
 }
-html.xnote-overlay ${VIEWER} > [role="dialog"] {
+html.xnote-overlay ${VIEWER}, dialog.xnote-media-preview::backdrop { background: rgb(0 0 0 / 0.55); }
+html.xnote-overlay ${VIEWER} > [role="dialog"], dialog.xnote-media-preview {
   flex: none !important;
   width: ${WIDTH} !important;
   height: ${POP.vh}vh !important;

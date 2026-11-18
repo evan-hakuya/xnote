@@ -32,7 +32,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     title: 'catView',
     sections: [
       { title: 'subPopup', keys: ['detailOverlay'] },
-      { title: 'subMedia', keys: ['hoverPlay', 'mediaGrid'] },
+      { title: 'subMedia', keys: ['mediaCtrlPreview', 'mediaHoverPreview', 'mediaHoverDelay', 'hoverPlay', 'mediaGrid'] },
       { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
       { title: 'subDock', keys: ['dockSearch', 'dockTop', 'dockRefresh'] },
     ],
@@ -79,7 +79,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
   },
   { title: 'catOther', sections: [{ title: 'subFeatures', keys: ['bypassAge', 'disableNfl'] }] },
 ]
-const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48] }
+const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48], mediaHoverDelay: [100, 5000] }
 // A line of explanation below the name of a switch.
 const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
   enabled: 'enabledHint',

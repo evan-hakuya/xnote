@@ -1,5 +1,6 @@
 import { installFilters } from './filters.ts'
 import { installHoverPlay } from './hoverplay.ts'
+import { installMediaPreview } from './media-preview.ts'
 import { installPanel } from './panel.ts'
 import { installMasonry } from './masonry.ts'
 import { installOverlay } from './overlay.ts'
@@ -17,8 +18,9 @@ const resume = installResume(store)
 store.subscribe((values) => document.documentElement.classList.toggle('xnote-on', values.enabled))
 
 const masonry = installMasonry(store)
+const preview = installMediaPreview(store)
 installOverlay(store)
-installHoverPlay(store)
+installHoverPlay(store, preview)
 installTweaks(store)
 installFilters(store)
 installPanel(store, () => (masonry.isBroken() ? 'masonryBroken' : null), resume)
