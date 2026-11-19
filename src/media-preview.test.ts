@@ -4,8 +4,9 @@ import { entityMedia } from './media-preview.ts'
 import { defaults } from './settings.ts'
 
 test('media preview requires an explicit opt-in for either trigger', () => {
+  assert.equal(defaults.hoverPlay, 0)
   assert.equal(defaults.mediaCtrlPreview, false)
-  assert.equal(defaults.mediaHoverPreview, false)
+  assert.equal(defaults.mediaHoverPreview, 0)
 })
 
 test('preview plays the highest bitrate MP4 supplied by X, including looping GIFs', () => {

@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { postOf, routerOf } from './overlay.ts'
+import { postOf, routerOf, snapshotOf } from './overlay.ts'
+
+test('the backdrop clones visible grid cells only, including both viewport edges', () => {
+  const copies: string[] = []
+  class Box {
+    parentNode?: Box
+    childNodes: Box[] = []
+    style: Record<string, string> = {}
+    get children() { return this.childNodes }
+    name: string
+    top: number
+    height: number
+    constructor(name: string, top = 0, height = 100) {
+      this.name = name
+      this.top = top
+      this.height = height
+    }
+    append(...nodes: Box[]) { for (const node of nodes) this.appendChild(node) }
+    appendChild(node: Box) { this.childNodes.push(node); node.parentNode = this }
+    getBoundingClientRect() { return { top: this.top, bottom: this.top + this.height, height: this.height } }
+    querySelector(): Box | undefined { return this.name === 'grid' ? this : this.children.map(n => n.querySelector()).find(Boolean) }
+    cloneNode(deep: boolean): Box {
+      copies.push(this.name)
+      const copy = new Box(this.name)
+      if (deep) copy.append(...this.children.map(n => n.cloneNode(true)))
+      return copy
+    }
+  }
+  const column = new Box('column'), section = new Box('section'), grid = new Box('grid', -200, 9000)
+  column.append(new Box('tabs'), section)
+  section.append(grid)
+  grid.append(...[-100, -50, 100, 200, 300].map(top => new Box(String(top), top)))
+  const snapshot = snapshotOf(column as unknown as Element, 250) as unknown as Box
+  assert.deepEqual(copies, ['column', 'tabs', 'section', 'grid', '-50', '100', '200'])
+  assert.equal(snapshot.querySelector()?.style.height, '9000px')
+})
 
 const fakeQuote = (...props: object[]) => {
   let fiber: object | null = null

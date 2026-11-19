@@ -225,7 +225,10 @@ export function installResume(store: Store) {
   const shown = (element: Element) =>
     element.getBoundingClientRect().height > 0 &&
     (element.closest('.xnote-far') !== null || element.checkVisibility({ visibilityProperty: true }))
+  // A parked post has no time link. Scroll its slot into range, then refine the offset
+  // with the real link on the next frame after React mounts the post.
   const postLink = (id: string) => [...document.querySelectorAll(`main article a[href$="/status/${id}"]:has(time)`)].find(shown)
+    ?? document.querySelector(`main .xnote-grid > [data-xnote-parked-post="${id}"]`)
   // Back to the post that was at the top of the window. The page grows and shrinks for a long
   // time while images load and X builds the feed again, so keep the post there until the user
   // moves the page; a minute at most.

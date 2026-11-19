@@ -9,7 +9,8 @@ const CSS = `
 html:has(> body > dialog.xnote-media-preview[open]) { overflow:hidden !important; scrollbar-gutter:auto !important; }
 .xnote-media-preview { position:fixed; inset:0; box-sizing:border-box; max-width:none; max-height:none; margin:auto; padding:0; border:0; color:white; }
 .xnote-media-preview[open] { --counter-height:48px; display:grid; grid-template-rows:minmax(0, 1fr) var(--counter-height); }
-.xnote-media-preview > img, .xnote-media-preview > video { grid-row:1; width:100%; height:100%; object-fit:contain; }
+.xnote-media-track { grid-row:1; display:flex; min-width:0; min-height:0; overflow:auto hidden; direction:ltr; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scrollbar-width:none; }
+.xnote-media-track > * { flex:0 0 100%; min-width:0; width:100%; height:100%; object-fit:contain; scroll-snap-align:center; }
 .xnote-media-preview button { position:absolute; grid-row:1; align-self:center; display:grid; place-items:center; width:36px; height:36px; padding:0; border:0; border-radius:50%; background:rgb(0 0 0 / 75%); color:white; cursor:pointer; }
 .xnote-media-preview button svg { display:block; width:20px; height:20px; fill:currentColor; }
 .xnote-media-preview button:hover { background:rgb(48 48 48 / 90%); }
@@ -17,7 +18,7 @@ html:has(> body > dialog.xnote-media-preview[open]) { overflow:hidden !important
 .xnote-media-preview :is(.prev, .next) { top:calc((100% - var(--counter-height)) / 2); transform:translateY(-50%); }
 .xnote-media-preview .prev { left:12px; }
 .xnote-media-preview .next { right:12px; }
-.xnote-media-preview output { grid-row:2; place-self:center; font:14px/1.4 sans-serif; }
+.xnote-media-preview output { grid-row:2; place-self:center; font:14px/1.4 sans-serif; outline:none; }
 `
 
 type Media = { kind: 'photo' | 'video'; url: string; alt: string; poster?: string; loop?: boolean }
@@ -90,6 +91,8 @@ export function installMediaPreview(store: Store) {
     const data = gallery(hit)
     if (dialog || !data) return false
     const { media } = data
+    const sourceTime = hit.querySelector('video')?.currentTime ?? 0
+    const selectedIndex = data.index
     let index = data.index
     const box = document.createElement('dialog')
     box.className = 'xnote-media-preview'
@@ -102,33 +105,53 @@ export function installMediaPreview(store: Store) {
       b.onclick = action
       box.append(b)
     }
-    let content: HTMLImageElement | HTMLVideoElement | undefined
-    const release = () => {
-      if (content instanceof HTMLVideoElement) {
-        content.pause(); content.removeAttribute('src'); content.load()
-      }
-      content?.remove()
-    }
+    const track = document.createElement('div')
+    track.className = 'xnote-media-track'
+    box.append(track)
     const counter = document.createElement('output')
-    const show = (step: number) => {
-      release()
-      index = (index + step + media.length) % media.length
-      const item = media[index]!
-      content = document.createElement(item.kind === 'video' ? 'video' : 'img')
+    // Start on the slide count so arrow navigation doesn't highlight Close.
+    counter.tabIndex = -1
+    counter.autofocus = true
+    box.append(counter)
+    const slides = media.map((item, slideIndex) => {
+      const content = document.createElement(item.kind === 'video' ? 'video' : 'img')
       if (content instanceof HTMLVideoElement) {
         content.controls = true; content.playsInline = true; content.muted = true
         content.loop = !!item.loop
+        content.preload = 'none'
         if (item.poster) content.poster = item.poster
+        if (slideIndex === selectedIndex && sourceTime > 0) {
+          const resume = () => { content.currentTime = sourceTime }
+          content.addEventListener('loadedmetadata', resume, { once: true })
+          try { content.currentTime = sourceTime } catch { /* metadata is not ready */ }
+        }
       } else {
         content.alt = item.alt
+        content.loading = 'lazy'
       }
       content.src = item.url
-      box.prepend(content)
-      if (content instanceof HTMLVideoElement) void content.play().catch(() => {})
+      track.append(content)
+      return content
+    })
+    const select = (next: number) => {
+      const previous = slides[index]
+      if (previous instanceof HTMLVideoElement) previous.pause()
+      index = next
+      const active = slides[index]
+      if (active instanceof HTMLVideoElement) void active.play().catch(() => {})
       counter.textContent = `${index + 1} / ${media.length}`
     }
+    const show = (step: number) => {
+      const next = (index + step + media.length) % media.length
+      track.scrollLeft = next * track.clientWidth
+      select(next)
+    }
+    track.onscroll = () => {
+      if (!track.clientWidth || !box.open) return
+      const next = Math.max(0, Math.min(media.length - 1, Math.round(track.scrollLeft / track.clientWidth)))
+      if (next !== index) select(next)
+    }
     button('close', 'M10.59 12L4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z', 'close', () => box.close())
-    box.append(counter)
     if (media.length > 1) {
       button('previousMedia', 'M7.414 13l5.043 5.04-1.414 1.42L3.586 12l7.457-7.46 1.414 1.42L7.414 11H21v2H7.414z', 'prev', () => show(-1))
       button('nextMedia', 'M12.957 4.54L20.414 12l-7.457 7.46-1.414-1.42L16.586 13H3v-2h13.586l-5.043-5.04 1.414-1.42z', 'next', () => show(1))
@@ -144,8 +167,14 @@ export function installMediaPreview(store: Store) {
         e.preventDefault(); e.stopPropagation(); show(e.key === 'ArrowLeft' ? -1 : 1)
       }
     }
-    box.onwheel = e => e.preventDefault()
-    box.onclose = () => { dismissed = new WeakRef(hit); release(); box.remove(); dialog = undefined }
+    box.onclose = () => {
+      dismissed = new WeakRef(hit)
+      for (const video of track.querySelectorAll('video')) {
+        video.pause(); video.removeAttribute('src'); video.load()
+      }
+      box.remove()
+      dialog = undefined
+    }
     dialog = box
     hit.closest('article')?.querySelectorAll('video').forEach(v => v.pause())
     document.body.append(box)
@@ -163,7 +192,7 @@ export function installMediaPreview(store: Store) {
   addEventListener('contextmenu', modifiedClick, true) // macOS may report Ctrl + click as a context menu.
   addEventListener('pointerover', e => {
     const s = store.get()
-    if (!s.enabled || !s.mediaHoverPreview || dialog || e.pointerType !== 'mouse') return
+    if (!s.enabled || s.mediaHoverPreview <= 0 || dialog || e.pointerType !== 'mouse') return
     const hit = mediaTarget(e.target)
     if (hit === pending && hit) return
     cancel()
@@ -174,17 +203,16 @@ export function installMediaPreview(store: Store) {
     const video = hit.querySelector('video')
     if (video && gallery(hit)) {
       pendingVideo = video
-      video.pause()
     }
     timer = setTimeout(() => {
       if (hit.isConnected && hit.matches(':hover') && document.visibilityState === 'visible') open(hit)
       else cancel()
-    }, Math.max(100, Math.min(5000, s.mediaHoverDelay)))
+    }, Math.min(5000, s.mediaHoverPreview))
   }, true)
   addEventListener('pointerout', e => { if (pending && mediaTarget(e.relatedTarget) !== pending) cancel() }, true)
   for (const type of ['scroll', 'pointerdown', 'blur']) addEventListener(type, cancel, true)
   addEventListener('popstate', () => { cancel(); dialog?.close() })
-  store.subscribe(s => { cancel(); if (!s.enabled || (!s.mediaHoverPreview && !s.mediaCtrlPreview)) dialog?.close() })
+  store.subscribe(s => { cancel(); if (!s.enabled || (s.mediaHoverPreview <= 0 && !s.mediaCtrlPreview)) dialog?.close() })
   return {
     isOpen: () => !!dialog,
     waitingForVideo: (video: HTMLMediaElement) => video === pendingVideo,

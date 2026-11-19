@@ -13,6 +13,20 @@ test('keeps X controls in native order while retaining the reading order of card
   assert.deepEqual(mergeReadingOrder(['newEntriesItem', 'new', 'a', 'b', '$footer'], [], full), ['newEntriesItem', 'new', 'a', 'b', '$footer'])
 })
 
+test('pagination appends new cards rather than inserting them before reordered older cards', () => {
+  assert.deepEqual(
+    mergeReadingOrder(['a', 'b', 'new', 'c', 'd'], ['c', 'd', 'a', 'b'], () => false),
+    ['c', 'd', 'a', 'b', 'new'],
+  )
+})
+
+test('a newly rendered thread continuation stays beside its already placed parent', () => {
+  assert.deepEqual(
+    mergeReadingOrder(['a', 'a-child', 'b', 'c'], ['c', 'a', 'b'], () => false, (id) => id === 'a-child'),
+    ['c', 'a', 'a-child', 'b'],
+  )
+})
+
 test('spatial reflow does not move a full-width control into the cards', () => {
   const order = readingOrder([
     { top: 8900, bottom: 8950, left: 0, full: true },

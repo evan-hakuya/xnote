@@ -11,17 +11,17 @@ const FEATHER = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http:
 // only, a round Post button with the feather, the avatar without the name. These rules give the
 // full navigation that look, measured from X's: a 68px column, a 52px Post button.
 const CSS = `
-#xnote-nav-toggle {
+.xnote-nav-toggle {
   position: absolute; top: 8px; right: 4px; z-index: 1; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer; opacity: 0.6;
 }
-#xnote-nav-toggle:hover { opacity: 1; background: color-mix(in srgb, currentColor 10%, transparent); }
-#xnote-nav-toggle[hidden] { display: none; }
-#xnote-nav-toggle svg { width: 20px; height: 20px; fill: currentColor; }
+.xnote-nav-toggle:hover { opacity: 1; background: color-mix(in srgb, currentColor 10%, transparent); }
+.xnote-nav-toggle[hidden] { display: none; }
+.xnote-nav-toggle svg { width: 20px; height: 20px; fill: currentColor; }
 /* The narrow column has no room beside the logo: the button gets a row of its own above it. */
-html.xnote-nav-narrow #xnote-nav-toggle { top: 4px; right: 16px; }
+html.xnote-nav-narrow .xnote-nav-toggle { top: 4px; right: 16px; }
 html.xnote-nav-narrow header[role="banner"] h1 { margin-top: 44px !important; }
-html.xnote-nav-narrow #xnote-nav-toggle svg { transform: scaleX(-1); }
+html.xnote-nav-narrow .xnote-nav-toggle svg { transform: scaleX(-1); }
 /* X animates the column's width. Its box snaps to the new width while the column, aligned to its
    right, grows or shrinks from the other side, so the navigation jumps left and back; and the
    masonry would measure a column half way. */
@@ -54,7 +54,8 @@ export function installNavToggle(store: Store) {
   addStyle(CSS)
   const root = document.documentElement
   const button = document.createElement('button')
-  button.id = 'xnote-nav-toggle'
+  // The backdrop copies the navigation without IDs.
+  button.className = 'xnote-nav-toggle'
   button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${CHEVRONS}"/></svg>`
   button.addEventListener('click', () => store.set('navNarrow', !store.get().navNarrow))
 

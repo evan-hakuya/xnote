@@ -1,4 +1,5 @@
 import { t } from './i18n.ts'
+import { installGallerySwipe } from './gallery-swipe.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
 import { fibers } from './react.ts'
 import { feedKind, isMediaLayer } from './route.ts'
@@ -27,6 +28,24 @@ html.xnote-overlay ${VIEWER} > [role="dialog"], dialog.xnote-media-preview {
   border-radius: ${POP.radius}px;
   overflow: hidden;
   background: #000;
+}
+${VIEWER} [aria-roledescription="carousel"] > .xnote-post-media-track {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+${VIEWER} [aria-roledescription="carousel"] > .xnote-post-media-track > [role="list"] {
+  position: relative !important;
+  display: flex !important;
+  transform: none !important;
+}
+${VIEWER} [aria-roledescription="carousel"] > .xnote-post-media-track > [role="list"] > [role="listitem"] {
+  position: relative !important;
+  flex: none !important;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 /* A post without media has no viewer, so X shows its real post page and xnote lays that out as
@@ -154,7 +173,42 @@ type Sheet = {
   closing?: true
 }
 
-export function installOverlay(store: Store) {
+// Clone the path down to the grid shallowly so offscreen posts are never copied.
+// Explicit grid rows keep each visible card at the same offset in the backdrop.
+export function snapshotOf(source: Element, viewportHeight: number): HTMLElement {
+  const grid = source.querySelector('.xnote-grid')
+  const branch = new Map<Node, Node>()
+  for (let node: Node | null = grid; node && node !== source && node.parentNode; node = node.parentNode) {
+    branch.set(node.parentNode, node)
+  }
+  const copy = (node: Node): Node => {
+    if (node === grid && grid) {
+      const clone = grid.cloneNode(false) as HTMLElement
+      clone.style.height = `${grid.getBoundingClientRect().height}px`
+      clone.style.boxSizing = 'border-box'
+      for (const cell of grid.children) {
+        const box = cell.getBoundingClientRect()
+        if (box.height > 0 && box.bottom > 0 && box.top < viewportHeight) clone.append(cell.cloneNode(true))
+      }
+      return clone
+    }
+    const next = branch.get(node)
+    if (!next) return node.cloneNode(true)
+    const clone = node.cloneNode(false)
+    for (const child of node.childNodes) clone.appendChild(child === next ? copy(child) : child.cloneNode(true))
+    return clone
+  }
+  return copy(source) as HTMLElement
+}
+
+function releaseBackdrop(backdrop: HTMLElement) {
+  backdrop.remove()
+  // A retained descendant otherwise keeps the entire detached feed snapshot alive.
+  backdrop.querySelector('.xnote-grid')?.replaceChildren()
+  backdrop.replaceChildren()
+}
+
+export function installOverlay(store: Store, isReadingPositionReady: (top: number) => boolean) {
   addStyle(CSS)
   const root = document.documentElement
   let sheet: Sheet | null = null
@@ -174,8 +228,8 @@ export function installOverlay(store: Store) {
 
   // X's layer container comes before the page in the document, so the id of a copy in there
   // would win over the real element's id in every lookup. Copies carry no ids.
-  const copyOf = (source: Element) => {
-    const copy = source.cloneNode(true) as HTMLElement
+  const copyOf = (source: Element, snapshot = false) => {
+    const copy = snapshot ? snapshotOf(source, innerHeight) : source.cloneNode(true) as HTMLElement
     copy.removeAttribute('id')
     for (const element of copy.querySelectorAll('[id]')) element.removeAttribute('id')
     return copy
@@ -239,7 +293,7 @@ export function installOverlay(store: Store) {
     for (const source of [document.querySelector('header[role="banner"]'), column]) {
       if (!source) continue
       const rect = source.getBoundingClientRect()
-      const copy = copyOf(source)
+      const copy = copyOf(source, true)
       // xnote's and X's selectors must not take the copy for the real element.
       copy.removeAttribute('data-testid')
       copy.removeAttribute('role')
@@ -272,7 +326,7 @@ export function installOverlay(store: Store) {
     }
     tools.append(toolButton(t('close'), CLOSE_ICON, closeAll), side)
     cover.append(words, bar, tools)
-    sheet?.backdrop.remove() // a sheet that was still closing
+    if (sheet) releaseBackdrop(sheet.backdrop) // a sheet that was still closing
     sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false, trail: [] }
     setCover(post)
     layers.prepend(backdrop, cover)
@@ -289,27 +343,20 @@ export function installOverlay(store: Store) {
     root.classList.remove('xnote-sheet')
     closing.cover.remove()
     const drop = () => {
-      closing.backdrop.remove()
+      releaseBackdrop(closing.backdrop)
       if (sheet === closing) sheet = null
     }
     if (location.pathname !== closing.from) return drop()
     // Back on the feed: X builds it again and xnote restores the scroll position. The copy shows
     // the same picture, so it covers the page until that is done and nothing flashes.
     closing.backdrop.style.clipPath = ''
-    const started = Date.now()
-    let layout = ''
-    let settled = started
-    const timer = setInterval(() => {
-      // Ready means: the feed is back, at its old scroll position, and its cards stopped moving.
-      const grid = document.querySelector('main .xnote-grid')
-      const now = grid ? Array.from(grid.children, (cell) => (cell as HTMLElement).style.gridArea).join() : ''
-      if (now !== layout) settled = Date.now()
-      layout = now
-      const ready = grid && Math.abs(scrollY - closing.top) < 4 && Date.now() - settled >= 200
-      if (!ready && Date.now() - started < 1500) return
-      clearInterval(timer)
-      drop()
-    }, 50)
+    const deadline = performance.now() + 1500
+    const reveal = () => {
+      if (sheet !== closing) return
+      if (location.pathname !== closing.from || isReadingPositionReady(closing.top) || performance.now() >= deadline) return drop()
+      requestAnimationFrame(reveal)
+    }
+    requestAnimationFrame(reveal)
   }
 
   const syncSheet = () => {
@@ -340,11 +387,26 @@ export function installOverlay(store: Store) {
     closeSheet(sheet)
   }
 
+  let swipe: ReturnType<typeof installGallerySwipe> | undefined
   const sync = () => {
     const { enabled, detailOverlay } = store.get()
     const on = enabled && detailOverlay && isMediaLayer(location.pathname)
     const changed = on !== root.classList.contains('xnote-overlay')
     root.classList.toggle('xnote-overlay', on)
+    const carousel = enabled && isMediaLayer(location.pathname)
+      ? document.querySelector<HTMLElement>(`${VIEWER} [aria-roledescription="carousel"]`)
+      : null
+    const list = carousel?.querySelector<HTMLElement>('[role="list"]') ?? null
+    if (carousel && list) {
+      if (!swipe || swipe.list !== list) {
+        swipe?.stop()
+        swipe = installGallerySwipe(list, carousel)
+      }
+      swipe.sync()
+    } else if (swipe) {
+      swipe.stop()
+      swipe = undefined
+    }
     // X sizes the media from the viewer's size and only measures again on a window resize.
     if (changed) dispatchEvent(new Event('resize'))
     syncSheet()

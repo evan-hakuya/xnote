@@ -32,7 +32,9 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     title: 'catView',
     sections: [
       { title: 'subPopup', keys: ['detailOverlay'] },
-      { title: 'subMedia', keys: ['mediaCtrlPreview', 'mediaHoverPreview', 'mediaHoverDelay', 'hoverPlay', 'mediaGrid'] },
+      { title: 'subMedia', keys: ['mediaGrid'] },
+      { title: 'subMediaZoom', keys: ['mediaCtrlPreview', 'mediaHoverPreview'] },
+      { title: 'subHoverPlay', keys: ['hoverPlay'] },
       { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
       { title: 'subDock', keys: ['dockSearch', 'dockTop', 'dockRefresh'] },
     ],
@@ -79,7 +81,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
   },
   { title: 'catOther', sections: [{ title: 'subFeatures', keys: ['bypassAge', 'disableNfl'] }] },
 ]
-const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48], mediaHoverDelay: [100, 5000] }
+const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48], hoverPlay: [0, 5000], mediaHoverPreview: [0, 5000] }
 // A line of explanation below the name of a switch.
 const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
   enabled: 'enabledHint',
@@ -175,6 +177,9 @@ function row(store: Store, key: keyof Settings, cache?: Cache) {
     input.min = String(min)
     input.max = String(max)
     input.valueAsNumber = value
+    if (key === 'hoverPlay' || key === 'mediaHoverPreview') {
+      text.append(el('small', t('millisecondsHint')))
+    }
     // Out-of-range and empty input is ignored until it becomes valid.
     input.addEventListener('input', () => input.validity.valid && input.value && store.set(key as KeysOf<number>, input.valueAsNumber))
   } else {

@@ -12,28 +12,28 @@ export function columnsFor(width: number, minWidth: number, gap: number) {
   return Math.max(1, Math.floor((width + gap) / (minWidth + gap)))
 }
 
-/** Keep X's full-width controls in native order, and reading order within each run of cards. */
-export function mergeReadingOrder<T>(native: T[], previous: T[], full: (item: T) => boolean): T[] {
-  const present = new Set(native)
-  const order = previous.filter((item) => present.has(item))
-  const known = new Set(order)
-  for (let i = native.length - 1; i >= 0; i--) {
-    const item = native[i]!
-    if (known.has(item)) continue
-    const next = order.indexOf(native[i + 1]!)
-    order.splice(next < 0 ? order.length : next, 0, item)
-  }
+/** Append new cards to the reading order, retaining X's controls and thread connections. */
+export function mergeReadingOrder<T>(native: T[], previous: T[], full: (item: T) => boolean, joined: (item: T) => boolean = () => false): T[] {
   const result: T[] = []
-  let run = new Set<T>()
+  let run: T[] = []
   const flush = () => {
-    result.push(...order.filter((item) => run.has(item)))
-    run = new Set<T>()
+    const present = new Set(run)
+    const order = previous.filter((item) => present.has(item))
+    const known = new Set(order)
+    for (const [i, item] of run.entries()) {
+      if (known.has(item)) continue
+      const before = joined(item) ? order.indexOf(run[i - 1]!) : -1
+      order.splice(before < 0 ? order.length : before + 1, 0, item)
+      known.add(item)
+    }
+    result.push(...order)
+    run = []
   }
   for (const item of native) {
     if (full(item)) {
       flush()
       result.push(item)
-    } else run.add(item)
+    } else run.push(item)
   }
   flush()
   return result
