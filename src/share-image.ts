@@ -48,11 +48,9 @@ ${BUTTONS.map(([key, part]) => `.xnote-share-shot.no-${key} ${ACTIONS} ${part}`)
 .xnote-share-grid[data-n="4"] { grid-template: 1fr 1fr / 1fr 1fr; }
 .xnote-share-grid[data-n="many"] { grid-template-columns: repeat(3, 1fr); aspect-ratio: auto; }
 .xnote-share-grid[data-n="many"] > * { aspect-ratio: 1; }
-.xnote-share-all { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.xnote-share-all > * { overflow: hidden; border-radius: 16px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.xnote-share-all { display: flex; gap: 2px; margin-top: 12px; overflow: hidden; border-radius: 16px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
 .xnote-share-tile { position: relative; min-width: 0; min-height: 0; }
-.xnote-share-grid img, .xnote-share-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.xnote-share-all img { width: 100%; display: block; }
+.xnote-share-grid img, .xnote-share-all img, .xnote-share-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .xnote-share-cover { position: absolute; inset: 0; z-index: 1; background: #000; }
 .xnote-share-play { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); display: grid; place-items: center;
   border: 4px solid #fff; border-radius: 50%; background: rgb(29 155 240); box-sizing: border-box; }
@@ -226,14 +224,15 @@ function open(store: Store, source: HTMLElement) {
       box.dataset.n = entities.length > 4 ? 'many' : String(entities.length)
       for (const entity of entities) {
         const src = entity.media_url_https ? largePhoto(entity.media_url_https) : ''
-        if (all && entity.type === 'photo') {
-          box.append(image(src))
-          continue
-        }
         const tile = entity.type === 'photo' ? Object.assign(document.createElement('div'), { className: 'xnote-share-tile' }) : cover(src, badgeOf(entity), 'xnote-share-tile')
         if (entity.type === 'photo') tile.append(image(src))
-        const { width, height } = entity.original_info ?? {}
-        if (all) tile.style.aspectRatio = width && height ? `${width} / ${height}` : '16 / 9'
+        if (all) {
+          // One row at a shared height: each item grows by its width-to-height ratio.
+          const { width, height } = entity.original_info ?? {}
+          const ratio = width && height ? width / height : 16 / 9
+          tile.style.aspectRatio = String(ratio)
+          tile.style.flex = `${ratio} 1 0`
+        }
         box.append(tile)
       }
       block.replaceWith(box)
