@@ -169,6 +169,14 @@ export function installMediaPreview(store: Store) {
     }
     box.onclose = () => {
       dismissed = new WeakRef(hit)
+      // The card's video continues from where the preview stopped, as the preview started from the card.
+      const watched = slides[selectedIndex]
+      const cardVideo = hit.querySelector('video')
+      if (watched instanceof HTMLVideoElement && watched.readyState > 0 && cardVideo) {
+        const time = watched.currentTime
+        if (cardVideo.readyState > 0) cardVideo.currentTime = time
+        else cardVideo.addEventListener('loadedmetadata', () => { cardVideo.currentTime = time }, { once: true })
+      }
       for (const video of track.querySelectorAll('video')) {
         video.pause(); video.removeAttribute('src'); video.load()
       }
