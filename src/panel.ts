@@ -24,7 +24,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
   {
     title: 'catLayout',
     sections: [
-      { title: 'subMasonry', keys: ['masonryHome', 'masonryProfile', 'masonrySearch'] },
+      { title: 'subMasonry', keys: ['masonryHome', 'masonryProfile', 'masonrySearch', 'hideThreadReplies'] },
       { title: 'subSize', keys: ['wideLayout', 'cardMinWidth', 'cardGap'] },
     ],
   },

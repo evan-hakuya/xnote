@@ -71,6 +71,8 @@ html.xnote-masonry [data-testid="primaryColumn"] section:has([data-testid="cellI
 }
 /* The posts of a thread are one card: X draws a line from one avatar to the next. */
 .xnote-grid > .xnote-joined { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+/* With its replies hidden, the first post loses X's line down from its avatar. */
+.xnote-grid > .xnote-card:has(+ .xnote-reply-hidden) [data-testid="Tweet-User-Avatar"] + div { display: none; }
 .xnote-grid > .xnote-card:has(+ .xnote-joined) { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 /* Promoted posts, and the "Who to follow" module with its heading and "Show more" link, marked
    from script: as :has() rules they cost the browser a lot on every change of a large feed. */
@@ -224,11 +226,15 @@ export function installMasonry(store: Store) {
         continue
       }
       const next = all[index + 1]
+      const hiddenReply = card && store.get().hideThreadReplies && isLater(cell)
+      cell.classList.toggle('xnote-reply-hidden', hiddenReply)
       cell.classList.toggle(
         'xnote-skip',
         cell.querySelector('[data-testid="placementTracking"] article, [data-testid="UserCell"], a[href^="/i/connect_people"]') !== null ||
-          (cell.querySelector('h2[role="heading"]') !== null && next?.querySelector('[data-testid="UserCell"]') != null),
+          (cell.querySelector('h2[role="heading"]') !== null && next?.querySelector('[data-testid="UserCell"]') != null) ||
+          hiddenReply,
       )
+      if (cell.classList.contains('xnote-skip')) cell.classList.remove('xnote-joined')
       // A cell must have its final width before its height is read.
       if (!cell.style.gridRowStart || card !== cell.classList.contains('xnote-card')) {
         cell.style.gridColumn = card ? 'auto' : '1 / -1'
@@ -473,7 +479,7 @@ export function installMasonry(store: Store) {
           parked.delete(cell)
           cell.removeAttribute('data-xnote-parked-post')
         }
-        cell.classList.remove('xnote-card', 'xnote-joined', 'xnote-skip', 'xnote-far')
+        cell.classList.remove('xnote-card', 'xnote-joined', 'xnote-skip', 'xnote-reply-hidden', 'xnote-far')
         cell.style.gridArea = ''
         cell.style.marginTop = ''
       }

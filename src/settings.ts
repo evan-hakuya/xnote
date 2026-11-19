@@ -3,6 +3,7 @@ export const defaults = {
   masonryHome: true,
   masonryProfile: true,
   masonrySearch: true,
+  hideThreadReplies: false,
   detailOverlay: true,
   hoverPlay: 0,
   mediaCtrlPreview: false,
