@@ -24,70 +24,72 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
   {
     title: 'catLayout',
     sections: [
-      { title: 'subMasonry', keys: ['masonryHome', 'masonryProfile', 'masonrySearch', 'hideThreadReplies'] },
-      { title: 'subSize', keys: ['wideLayout', 'cardMinWidth', 'cardGap'] },
-    ],
-  },
-  {
-    title: 'catView',
-    sections: [
-      { title: 'subPopup', keys: ['detailOverlay'] },
-      { title: 'subMedia', keys: ['mediaGrid'] },
-      { title: 'subMediaZoom', keys: ['mediaCtrlPreview', 'mediaHoverPreview'] },
-      { title: 'subHoverPlay', keys: ['hoverPlay'] },
-      { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
-      { title: 'subDock', keys: ['dockSearch', 'dockTop', 'dockRefresh'] },
+      { title: 'subMasonry', keys: ['masonryHome', 'masonryProfile', 'masonrySearch'] },
+      { title: 'subWidth', keys: ['wideLayout', 'navNarrow'] },
+      { title: 'subSize', keys: ['cardMinWidth', 'cardGap'] },
     ],
   },
   {
     title: 'catTimeline',
     sections: [
-      { title: 'subEntries', keys: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts'] },
-      { title: 'subQuotes', keys: ['hideQuotes', 'hideUnavailableQuotes', 'mutedQuotes'] },
+      { title: 'subResume', keys: ['resumeForYou', 'resumeFollowing', 'resumeLists'] },
+      { title: 'subEntries', keys: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts', 'hideUnavailableQuotes', 'mutedQuotes'] },
+      { title: 'subCardContent', keys: ['hideThreadReplies', 'hideQuotes'] },
     ],
   },
   {
     title: 'catPost',
     sections: [
+      { title: 'subPopup', keys: ['detailOverlay'] },
       { title: 'subActions', keys: ['hideReplyButton', 'hideRetweetButton', 'hideLikeButton', 'hideViews', 'hideBookmarkButton', 'hideShareButton'] },
       { title: 'subPostMenu', keys: ['hideViewActivity', 'shareImage'] },
     ],
   },
   {
+    title: 'catMedia',
+    sections: [
+      { title: 'subMedia', keys: ['mediaGrid'] },
+      { title: 'subMediaZoom', keys: ['mediaCtrlPreview', 'mediaHoverPreview'] },
+      { title: 'subHoverPlay', keys: ['hoverPlay'] },
+    ],
+  },
+  {
     title: 'catNav',
     sections: [
+      // In the order X shows them; the xnote entry comes after "More".
       {
-        title: 'subNavItems',
-        // In the order X shows them: the navigation, then its "More" menu, then the xnote entry.
-        // Jobs and Money were not on the page to look at; they close the menu.
-        keys: [
-          'hideExploreNav', 'hideNotificationsNav', 'hideConnectNav', 'hideMessagesNav', 'hideCallsNav', 'hideHistoryNav',
-          'hidePremiumNav', 'hideProfileNav',
-          'hideListsNav', 'hideCommunitiesNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideSpacesNav',
-          'hideJobsNav', 'hideMoneyNav',
-          'hideXnoteNav',
-        ],
+        title: 'subNavMain',
+        keys: ['hideExploreNav', 'hideNotificationsNav', 'hideConnectNav', 'hideMessagesNav', 'hideCallsNav', 'hideHistoryNav', 'hidePremiumNav', 'hideProfileNav', 'hideXnoteNav'],
       },
-      { title: 'subPageParts', keys: ['navNarrow', 'hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
+      // Jobs and Money were not on the page to look at; they close the menu.
+      {
+        title: 'subNavMore',
+        keys: ['hideListsNav', 'hideCommunitiesNav', 'hideCreatorStudioNav', 'hideBusinessNav', 'hideAdsNav', 'hideSpacesNav', 'hideJobsNav', 'hideMoneyNav'],
+      },
+      { title: 'subPageParts', keys: ['hideSidebarContent', 'hideExplore', 'hideChatDrawer'] },
+      { title: 'subDock', keys: ['dockSearch', 'dockTop', 'dockRefresh'] },
     ],
   },
   { title: 'catPromo', sections: [{ keys: ['hideGrok', 'hideUpsells'] }] },
   {
     title: 'catLook',
     sections: [
-      { title: 'subClassic', keys: ['birdLogo', 'monochromeFollow', 'premiumCheck'] },
+      { title: 'subClassic', keys: ['birdLogo', 'premiumCheck'] },
+      { title: 'subButtons', keys: ['monochromeFollow'] },
       { title: 'subText', keys: ['navNormalFont', 'menuNormalFont', 'twemoji'] },
     ],
   },
   { title: 'catOther', sections: [{ title: 'subFeatures', keys: ['bypassAge', 'disableNfl'] }] },
 ]
 const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48], hoverPlay: [0, 5000], mediaHoverPreview: [0, 5000] }
-// A line of explanation below the name of a switch.
-const hints: Partial<Record<KeysOf<boolean>, MessageKey>> = {
+// A line of explanation below the name of a setting.
+const hints: Partial<Record<keyof Settings, MessageKey>> = {
   enabled: 'enabledHint',
   birdLogo: 'classicHint',
   mediaGrid: 'reloadHint',
   twemoji: 'reloadHint',
+  hideThreadReplies: 'shareSameHint',
+  hideQuotes: 'shareSameHint',
 }
 
 const CSS = `
@@ -143,9 +145,9 @@ function row(store: Store, key: keyof Settings, cache?: Cache) {
   const text = el('span', t(key))
   const input = el('input')
   const value = store.get()[key]
+  const hint = hints[key]
+  if (hint) text.append(el('small', t(hint)))
   if (typeof value === 'boolean') {
-    const hint = hints[key as KeysOf<boolean>]
-    if (hint) text.append(el('small', t(hint)))
     const toggle = RESUME.find((name) => name === key)
     if (cache && toggle) {
       const line = el('small')
