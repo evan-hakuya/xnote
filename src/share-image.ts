@@ -49,6 +49,8 @@ ${BUTTONS.map(([key, part]) => `.xnote-share-shot.no-${key} ${ACTIONS} ${part}`)
 .xnote-share-grid[data-n="many"] { grid-template-columns: repeat(3, 1fr); aspect-ratio: auto; }
 .xnote-share-grid[data-n="many"] > * { aspect-ratio: 1; }
 .xnote-share-all { display: flex; gap: 2px; margin-top: 12px; overflow: hidden; border-radius: 16px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+.xnote-share-all.column { flex-direction: column; }
+.xnote-share-all.column > * { flex: none !important; }
 .xnote-share-tile { position: relative; min-width: 0; min-height: 0; }
 .xnote-share-grid img, .xnote-share-all img, .xnote-share-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .xnote-share-cover { position: absolute; inset: 0; z-index: 1; background: #000; }
@@ -166,6 +168,17 @@ function frames(url: string) {
 }
 
 function open(store: Store, source: HTMLElement) {
+  // In the masonry a thread is one card of several cells; share the posts of that card.
+  const thread: HTMLElement[] = []
+  const joined = (node: Element | null) => node?.classList.contains('xnote-joined') || node?.classList.contains('xnote-reply-hidden')
+  let cell: Element | null = source.closest('.xnote-grid > *')
+  while (cell && joined(cell) && cell.previousElementSibling) cell = cell.previousElementSibling
+  for (let first = true; cell && (first || joined(cell)); cell = cell.nextElementSibling, first = false) {
+    const post = cell.querySelector('article')
+    if (post) thread.push(post)
+  }
+  if (!thread.includes(source)) thread.splice(0, thread.length, source)
+
   const tweet = tweetOf(source)
   const entities: Entity[] = Array.isArray(tweet?.extended_entities?.media) ? tweet.extended_entities.media : []
   const several = entities.length > 1
@@ -213,21 +226,30 @@ function open(store: Store, source: HTMLElement) {
   const render = () => {
     const values = store.get()
     const grid = values.shareGrid ? values.shareGrid === 'on' : values.mediaGrid
+    const hideReplies = values.shareHideReplies ? values.shareHideReplies === 'on' : values.hideThreadReplies
     shot.className = ['xnote-share-shot', ...BUTTONS.filter(([key]) => !values[key]).map(([key]) => `no-${key}`)].join(' ')
+    const posts = hideReplies ? thread.slice(0, 1) : thread
+    const copies = posts.map((post) => (post === source ? sourceCopy(values, grid) : (post.cloneNode(true) as HTMLElement)))
+    // X's line from the first post's avatar down to its reply.
+    if (posts.length < thread.length) copies[0]!.querySelector('[data-testid="Tweet-User-Avatar"] + div')?.remove()
+    card.replaceChildren(...copies)
+    fit()
+  }
+  const sourceCopy = (values: ReturnType<Store['get']>, grid: boolean) => {
     const copy = source.cloneNode(true) as HTMLElement
     const block = mediaBlock(copy)
     if (block && several && (values.shareAllImages || grid)) {
       // shortcut: with the grid off the copy keeps what X drew, a carousel or X's own grid; draw a carousel if that matters
       const all = values.shareAllImages
       const box = document.createElement('div')
-      box.className = all ? 'xnote-share-all' : 'xnote-share-grid'
+      box.className = all ? `xnote-share-all${values.shareAllColumn ? ' column' : ''}` : 'xnote-share-grid'
       box.dataset.n = entities.length > 4 ? 'many' : String(entities.length)
       for (const entity of entities) {
         const src = entity.media_url_https ? largePhoto(entity.media_url_https) : ''
         const tile = entity.type === 'photo' ? Object.assign(document.createElement('div'), { className: 'xnote-share-tile' }) : cover(src, badgeOf(entity), 'xnote-share-tile')
         if (entity.type === 'photo') tile.append(image(src))
         if (all) {
-          // One row at a shared height: each item grows by its width-to-height ratio.
+          // In a row at a shared height each item grows by its width-to-height ratio; a column ignores the growth.
           const { width, height } = entity.original_info ?? {}
           const ratio = width && height ? width / height : 16 / 9
           tile.style.aspectRatio = String(ratio)
@@ -242,8 +264,7 @@ function open(store: Store, source: HTMLElement) {
       if (getComputedStyle(source.querySelector('[data-testid="videoPlayer"]')!).position === 'static') player.style.position = 'relative'
       player.append(cover(still, badgeOf(videoEntity), 'xnote-share-cover'))
     }
-    card.replaceChildren(copy)
-    fit()
+    return copy
   }
 
   // The options.
@@ -283,6 +304,12 @@ function open(store: Store, source: HTMLElement) {
     const values = () => store.get()
     check(media, 'shareGrid', () => (values().shareGrid ? values().shareGrid === 'on' : values().mediaGrid), (on) => store.set('shareGrid', on ? 'on' : 'off'), () => values().shareAllImages)
     check(media, 'shareAllImages', () => values().shareAllImages, (on) => store.set('shareAllImages', on))
+    check(media, 'shareAllColumn', () => values().shareAllColumn, (on) => store.set('shareAllColumn', on), () => !values().shareAllImages)
+  }
+  if (thread.length > 1) {
+    const box = section('shareThread')
+    const values = () => store.get()
+    check(box, 'shareHideReplies', () => (values().shareHideReplies ? values().shareHideReplies === 'on' : values().hideThreadReplies), (on) => store.set('shareHideReplies', on ? 'on' : 'off'))
   }
   if (videoEntity?.type === 'video') {
     const box = section('shareVideo')

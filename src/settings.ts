@@ -56,6 +56,8 @@ export const defaults = {
   shareShare: false,
   shareGrid: '', // '', 'on' or 'off': '' follows mediaGrid
   shareAllImages: false,
+  shareAllColumn: false, // all images in a column instead of a row
+  shareHideReplies: '', // '', 'on' or 'off': '' follows hideThreadReplies
   hideUpsells: true,
   hideSidebarContent: true,
   birdLogo: true,
