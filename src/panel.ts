@@ -50,7 +50,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     title: 'catPost',
     sections: [
       { title: 'subActions', keys: ['hideReplyButton', 'hideRetweetButton', 'hideLikeButton', 'hideViews', 'hideBookmarkButton', 'hideShareButton'] },
-      { title: 'subPostMenu', keys: ['hideViewActivity'] },
+      { title: 'subPostMenu', keys: ['hideViewActivity', 'shareImage'] },
     ],
   },
   {

@@ -45,6 +45,16 @@ export const defaults = {
   hideBookmarkButton: false,
   hideShareButton: false,
   hideViewActivity: true,
+  shareImage: true, // "Share as image" in a post's ··· menu
+  // The choices of the share window, remembered between uses; they are not in the settings window.
+  shareReply: true,
+  shareRetweet: true,
+  shareLike: true,
+  shareViews: true,
+  shareBookmark: false,
+  shareShare: false,
+  shareGrid: '', // '', 'on' or 'off': '' follows mediaGrid
+  shareAllImages: false,
   hideUpsells: true,
   hideSidebarContent: true,
   birdLogo: true,
