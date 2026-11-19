@@ -9,6 +9,11 @@ const NAV = ':is(header[role="banner"], header.xnote-snapshot) nav'
 const MENU = '[role="menu"]'
 // The row of buttons under a post.
 const ACTIONS = '[role="group"]:has([data-testid="like"], [data-testid="unlike"])'
+/** A quoted post in a post: its box, and the box above with its top space when nothing else, such as media, shares it. */
+export const QUOTE_BOXES = [
+  'div:has(> div[role="link"] [data-testid="User-Name"])',
+  'div[aria-labelledby]:has(> div:only-child > div[role="link"] [data-testid="User-Name"])',
+]
 const hide = (...selectors: string[]) => `${selectors.join(',\n')} { display: none !important; }`
 const navItem = (link: string) => hide(`${NAV} ${link}`, `${MENU} ${link}`)
 
@@ -130,6 +135,7 @@ html ${FOLLOW}:hover { background-color: rgb(${BLUE}) !important; }`,
   hidePrompts: marked('prompt'),
   hideMorePosts: marked('more'),
   hideUnavailableQuotes: marked('tombstone'),
+  hideQuotes: hide(...QUOTE_BOXES.map((box) => `#react-root article ${box}`)), // not in the share window, which has its own switch
   // The tabs and the content of Explore, which leaves the search box.
   hideExplore: hide(
     'html.xnote-explore [data-testid="primaryColumn"] > div > div:first-of-type nav',

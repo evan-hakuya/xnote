@@ -43,7 +43,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     title: 'catTimeline',
     sections: [
       { title: 'subEntries', keys: ['hideRetweets', 'hideSuggested', 'hidePrompts', 'hideMorePosts'] },
-      { title: 'subQuotes', keys: ['hideUnavailableQuotes', 'mutedQuotes'] },
+      { title: 'subQuotes', keys: ['hideQuotes', 'hideUnavailableQuotes', 'mutedQuotes'] },
     ],
   },
   {

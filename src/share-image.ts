@@ -4,6 +4,7 @@ import { entityMedia } from './media-preview.ts'
 import { addStyle, onPageChange } from './page.ts'
 import { fibers } from './react.ts'
 import type { Store } from './settings.ts'
+import { QUOTE_BOXES } from './tweaks.ts'
 
 // "Share as image": a post's ··· menu opens a window with a copy of the post on the left and its
 // options on the right. The copy is X's own DOM; modern-screenshot turns it into a PNG.
@@ -11,7 +12,6 @@ import type { Store } from './settings.ts'
 const WIDTH = 600 // X's single column: the image is this wide, at twice the resolution
 const PICTURE =
   'M3 5.5C3 4.119 4.119 3 5.5 3h13C19.881 3 21 4.119 21 5.5v13c0 1.381-1.119 2.5-2.5 2.5h-13C4.119 21 3 19.881 3 18.5v-13zM5.5 5c-.276 0-.5.224-.5.5v9.086l3-3 3 3 5-5 3 3V5.5c0-.276-.224-.5-.5-.5h-13zM19 15.414l-3-3-5 5-3-3-3 3V18.5c0 .276.224.5.5.5h13c.276 0 .5-.224.5-.5v-3.086zM9.75 7C8.784 7 8 7.784 8 8.75s.784 1.75 1.75 1.75 1.75-.784 1.75-1.75S10.716 7 9.75 7z'
-const PLAY = 'M21 12L4 2v20l17-10z'
 const CLOSE = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
 const ACTIONS = '[role="group"]:has([data-testid="like"], [data-testid="unlike"])'
 const MEDIA = '[data-testid="tweetPhoto"], [data-testid="videoPlayer"]'
@@ -54,9 +54,7 @@ ${BUTTONS.map(([key, part]) => `.xnote-share-shot.no-${key} ${ACTIONS} ${part}`)
 .xnote-share-tile { position: relative; min-width: 0; min-height: 0; }
 .xnote-share-grid img, .xnote-share-all img, .xnote-share-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .xnote-share-cover { position: absolute; inset: 0; z-index: 1; background: #000; }
-.xnote-share-play { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); display: grid; place-items: center;
-  border: 4px solid #fff; border-radius: 50%; background: rgb(29 155 240); box-sizing: border-box; }
-.xnote-share-play svg { width: 26px; height: 26px; fill: #fff; margin-left: 3px; }
+${QUOTE_BOXES.map((box) => `.xnote-share-shot.no-quote ${box}`).join(',\n')} { display: none !important; }
 .xnote-share-badge { position: absolute; left: 12px; bottom: 12px; padding: 0 4px; border-radius: 4px; background: rgb(0 0 0 / 0.77); color: #fff; font: 700 13px/20px TwitterChirp, sans-serif; }
 .xnote-share-side { display: flex; flex-direction: column; gap: 16px; overflow: auto; padding: 16px 20px; font: 15px/20px TwitterChirp, -apple-system, sans-serif; }
 .xnote-share-side header { display: flex; align-items: center; justify-content: space-between; font-size: 20px; font-weight: 800; line-height: 24px; }
@@ -115,16 +113,16 @@ function image(src: string) {
   img.src = src
   return img
 }
-// X's video cover: the picture, a play button, and the length or "GIF" at the bottom left.
+// X's video cover: the picture, and the length or "GIF" at the bottom left.
 function cover(src: string, badge: string, className: string) {
   const box = document.createElement('div')
   box.className = className
   box.append(image(src))
-  if (badge !== 'GIF') box.insertAdjacentHTML('beforeend', `<div class="xnote-share-play">${svg(PLAY)}</div>`)
   if (badge) box.insertAdjacentHTML('beforeend', `<div class="xnote-share-badge">${badge}</div>`)
   return box
 }
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`
+const hidesQuote = (values: ReturnType<Store['get']>) => (values.shareHideQuote ? values.shareHideQuote === 'on' : values.hideQuotes)
 const badgeOf = (entity: Entity) =>
   entity.type === 'animated_gif' ? 'GIF' : entity.video_info?.duration_millis ? clock(entity.video_info.duration_millis) : ''
 
@@ -227,7 +225,7 @@ function open(store: Store, source: HTMLElement) {
     const values = store.get()
     const grid = values.shareGrid ? values.shareGrid === 'on' : values.mediaGrid
     const hideReplies = values.shareHideReplies ? values.shareHideReplies === 'on' : values.hideThreadReplies
-    shot.className = ['xnote-share-shot', ...BUTTONS.filter(([key]) => !values[key]).map(([key]) => `no-${key}`)].join(' ')
+    shot.className = ['xnote-share-shot', ...BUTTONS.filter(([key]) => !values[key]).map(([key]) => `no-${key}`), hidesQuote(values) ? 'no-quote' : ''].join(' ')
     const posts = hideReplies ? thread.slice(0, 1) : thread
     const copies = posts.map((post) => (post === source ? sourceCopy(values, grid) : (post.cloneNode(true) as HTMLElement)))
     // X's line from the first post's avatar down to its reply.
@@ -306,10 +304,12 @@ function open(store: Store, source: HTMLElement) {
     check(media, 'shareAllImages', () => values().shareAllImages, (on) => store.set('shareAllImages', on))
     check(media, 'shareAllColumn', () => values().shareAllColumn, (on) => store.set('shareAllColumn', on), () => !values().shareAllImages)
   }
-  if (thread.length > 1) {
-    const box = section('shareThread')
+  const quoted = thread.some((post) => post.querySelector(QUOTE_BOXES[0]!))
+  if (thread.length > 1 || quoted) {
+    const box = section('shareContent')
     const values = () => store.get()
-    check(box, 'shareHideReplies', () => (values().shareHideReplies ? values().shareHideReplies === 'on' : values().hideThreadReplies), (on) => store.set('shareHideReplies', on ? 'on' : 'off'))
+    if (quoted) check(box, 'shareHideQuote', () => hidesQuote(values()), (on) => store.set('shareHideQuote', on ? 'on' : 'off'))
+    if (thread.length > 1) check(box, 'shareHideReplies', () => (values().shareHideReplies ? values().shareHideReplies === 'on' : values().hideThreadReplies), (on) => store.set('shareHideReplies', on ? 'on' : 'off'))
   }
   if (videoEntity?.type === 'video') {
     const box = section('shareVideo')

@@ -58,6 +58,7 @@ export const defaults = {
   shareAllImages: false,
   shareAllColumn: false, // all images in a column instead of a row
   shareHideReplies: '', // '', 'on' or 'off': '' follows hideThreadReplies
+  shareHideQuote: '', // '', 'on' or 'off': '' follows hideQuotes
   hideUpsells: true,
   hideSidebarContent: true,
   birdLogo: true,
@@ -75,6 +76,7 @@ export const defaults = {
   hidePrompts: true,
   hideMorePosts: true,
   hideUnavailableQuotes: true,
+  hideQuotes: false, // the quoted post inside a post; the post itself stays
   mutedQuotes: 'KKong_1p', // account names, separated by spaces or commas
 }
 
