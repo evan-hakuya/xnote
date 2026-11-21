@@ -80,6 +80,7 @@ const categories: { title: MessageKey; sections: Section[] }[] = [
     ],
   },
   { title: 'catOther', sections: [{ title: 'subFeatures', keys: ['bypassAge', 'disableNfl'] }] },
+  { title: 'catBackup', sections: [] }, // filled by backup()
 ]
 const limits: Record<KeysOf<number>, [number, number]> = { cardMinWidth: [160, 800], cardGap: [0, 48], hoverPlay: [0, 5000], mediaHoverPreview: [0, 5000] }
 // A line of explanation below the name of a setting.
@@ -131,6 +132,12 @@ const CSS = `
 #xnote-panel input[type="number"] { width: 80px; }
 #xnote-panel input[type="text"] { width: 180px; }
 #xnote-panel [role="status"] { margin: 16px 0 0; color: rgb(244, 33, 46); }
+#xnote-panel textarea { box-sizing: border-box; width: 100%; height: 160px; margin-top: 8px; padding: 8px; resize: vertical;
+  border: 1px solid rgb(128 128 128 / 0.3); border-radius: 8px; background: transparent; color: inherit; font: 12px/16px ui-monospace, Menlo, monospace; }
+#xnote-panel .xnote-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+#xnote-panel .xnote-actions button { padding: 6px 16px; border: 1px solid rgb(128 128 128 / 0.4); border-radius: 9999px; font-weight: 700; }
+#xnote-panel .xnote-actions button:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+#xnote-panel .xnote-actions output { font-size: 13px; opacity: 0.7; }
 `
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string) {
@@ -171,14 +178,12 @@ function row(store: Store, key: keyof Settings, cache?: Cache) {
     }
     input.type = 'checkbox'
     input.setAttribute('role', 'switch')
-    input.checked = value
     input.addEventListener('change', () => store.set(key as KeysOf<boolean>, input.checked))
   } else if (typeof value === 'number') {
     const [min, max] = limits[key as KeysOf<number>]
     input.type = 'number'
     input.min = String(min)
     input.max = String(max)
-    input.valueAsNumber = value
     if (key === 'hoverPlay' || key === 'mediaHoverPreview') {
       text.append(el('small', t('millisecondsHint')))
     }
@@ -187,11 +192,82 @@ function row(store: Store, key: keyof Settings, cache?: Cache) {
   } else {
     text.append(el('small', t('namesHint')))
     input.type = 'text'
-    input.value = value
     input.addEventListener('input', () => store.set(key as KeysOf<string>, input.value))
   }
+  // Follow changes from elsewhere, such as an import; not while the user types in this field.
+  store.subscribe((values) => {
+    if (document.activeElement === input) return
+    const next = values[key]
+    if (typeof next === 'boolean') input.checked = next
+    else if (typeof next === 'number') input.valueAsNumber = next
+    else input.value = next
+  })
   label.append(text, input)
   return label
+}
+
+/** Export the settings as JSON to copy or download; import them from pasted text or a file. */
+function backup(store: Store) {
+  const actions = (...nodes: Node[]) => {
+    const box = el('div')
+    box.className = 'xnote-actions'
+    box.append(...nodes)
+    return box
+  }
+  const button = (key: MessageKey, run: () => void) => {
+    const node = el('button', t(key))
+    node.type = 'button'
+    node.addEventListener('click', run)
+    return node
+  }
+
+  const exported = el('textarea')
+  exported.readOnly = true
+  store.subscribe((values) => (exported.value = JSON.stringify(values, null, 2)))
+  const exportStatus = el('output')
+  const copy = button('copyText', () => {
+    navigator.clipboard.writeText(exported.value).then(
+      () => (exportStatus.textContent = t('copied')),
+      () => exported.select(), // no clipboard access: leave it selected to copy by hand
+    )
+  })
+  const download = button('downloadFile', () => {
+    const link = el('a')
+    link.href = URL.createObjectURL(new Blob([exported.value], { type: 'application/json' }))
+    link.download = 'xnote-settings.json'
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000)
+  })
+
+  const pasted = el('textarea')
+  pasted.spellcheck = false
+  const file = el('input')
+  file.type = 'file'
+  file.accept = '.json,application/json,text/plain'
+  file.hidden = true
+  file.addEventListener('change', () => {
+    void file.files?.[0]?.text().then((text) => (pasted.value = text))
+    file.value = '' // the same file can be chosen again
+  })
+  const importStatus = el('output')
+  const load = button('importSettings', () => {
+    try {
+      importStatus.textContent = t('imported').replace('{n}', String(store.load(pasted.value)))
+      pasted.value = ''
+    } catch {
+      importStatus.textContent = t('importFailed')
+    }
+  })
+
+  return [
+    el('h3', t('subExport')),
+    exported,
+    actions(copy, download, exportStatus),
+    el('h3', t('subImport')),
+    el('small', t('importHint')),
+    pasted,
+    actions(button('chooseFile', () => file.click()), load, file, importStatus),
+  ]
 }
 
 function createPanel(store: Store, notice: HTMLElement, cache?: Cache) {
@@ -223,6 +299,7 @@ function createPanel(store: Store, notice: HTMLElement, cache?: Cache) {
       box.append(...section.keys.map((key) => row(store, key, cache)))
       page.append(box)
     }
+    if (title === 'catBackup') page.append(...backup(store))
     const tab = el('button', t(title))
     tab.addEventListener('click', () => show(index))
     nav.append(tab)

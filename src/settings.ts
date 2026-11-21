@@ -85,29 +85,48 @@ export type Store = ReturnType<typeof createStore>
 
 const KEY = 'xnote:settings'
 
-function read(storage: Pick<Storage, 'getItem'>): Settings {
+/** The settings in `stored`, with defaults for the rest; and how many of them it held. */
+function pick(stored: any) {
   const values: Record<string, unknown> = { ...defaults }
-  try {
-    const stored = JSON.parse(storage.getItem(KEY) ?? '{}')
-    for (const [key, fallback] of Object.entries(defaults)) {
-      if (typeof stored?.[key] === typeof fallback) values[key] = stored[key]
-    }
-  } catch {
-    // Corrupt stored data: keep the defaults.
+  let found = 0
+  for (const [key, fallback] of Object.entries(defaults)) {
+    if (typeof stored?.[key] !== typeof fallback) continue
+    values[key] = stored[key]
+    found++
   }
-  return values as Settings
+  return { values: values as Settings, found }
+}
+
+function read(storage: Pick<Storage, 'getItem'>): Settings {
+  try {
+    return pick(JSON.parse(storage.getItem(KEY) ?? '{}')).values
+  } catch {
+    return { ...defaults } // corrupt stored data
+  }
 }
 
 // shortcut: localStorage is lost when the user clears site data, move to GM storage if that hurts
 export function createStore(storage: Pick<Storage, 'getItem' | 'setItem'>) {
   const values = read(storage)
   const listeners = new Set<(values: Settings) => void>()
+  const save = () => {
+    storage.setItem(KEY, JSON.stringify(values))
+    for (const listener of listeners) listener(values)
+  }
   return {
     get: () => values,
     set<K extends keyof Settings>(key: K, value: Settings[K]) {
       values[key] = value
-      storage.setItem(KEY, JSON.stringify(values))
-      for (const listener of listeners) listener(values)
+      save()
+    },
+    /** Replaces every setting with exported ones; throws, changing nothing, unless the text holds some. Returns how many it held. */
+    load(text: string) {
+      const parsed = JSON.parse(text)
+      const { values: next, found } = pick(parsed)
+      if (!found || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not xnote settings')
+      Object.assign(values, next)
+      save()
+      return found
     },
     /** Calls the listener now and after every change. */
     subscribe(listener: (values: Settings) => void) {
