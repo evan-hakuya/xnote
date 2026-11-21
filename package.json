@@ -1,6 +1,7 @@
 {
   "name": "xnote",
   "version": "0.1.0",
+  "author": "evan-hakuya",
   "private": true,
   "type": "module",
   "license": "MIT",
