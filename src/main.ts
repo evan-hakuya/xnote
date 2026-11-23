@@ -20,7 +20,7 @@ store.subscribe((values) => document.documentElement.classList.toggle('xnote-on'
 
 const masonry = installMasonry(store)
 const preview = installMediaPreview(store)
-installOverlay(store, masonry.isReadingPositionReady)
+installOverlay(store, masonry.isReadingPositionReady, preview.open)
 installHoverPlay(store, preview)
 installTweaks(store)
 installFilters(store)

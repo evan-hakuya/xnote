@@ -175,6 +175,7 @@ type Sheet = {
   trail: string[] // the pages opened inside the sheet, one browser history entry each
   page?: { path: string; since: number; touched?: true } // the post page that the sheet shows now; touched once the user scrolls
   closing?: true
+  source?: Element // what the cover's text is a copy of
 }
 
 // Clone the path down to the grid shallowly so offscreen posts are never copied.
@@ -212,7 +213,7 @@ function releaseBackdrop(backdrop: HTMLElement) {
   backdrop.replaceChildren()
 }
 
-export function installOverlay(store: Store, isReadingPositionReady: (top: number) => boolean) {
+export function installOverlay(store: Store, isReadingPositionReady: (top: number) => boolean, openMedia: (element: Element) => boolean) {
   addStyle(CSS)
   const root = document.documentElement
   let sheet: Sheet | null = null
@@ -254,6 +255,7 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
       words.dataset.key = key
       const top = words.scrollTop
       words.replaceChildren(copyOf(text))
+      sheet.source = text
       words.scrollTop = top
       const length = text.textContent?.length ?? 0
       sheet.cover.style.setProperty('--xnote-cover-font', length < 60 ? '40px' : length < 240 ? '28px' : '20px')
@@ -317,6 +319,17 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
     cover.id = 'xnote-cover'
     const words = document.createElement('div')
     words.className = 'xnote-cover-text'
+    // A photo in the copy is the n-th photo of the real post: open that one in the media preview,
+    // instead of following the copy's link, which leaves X for a full page load.
+    words.addEventListener('click', (event) => {
+      const tile = (event.target as Element).closest('[data-testid="tweetPhoto"]')
+      if (!tile) return
+      event.preventDefault()
+      if (!sheet?.source?.isConnected) return
+      const index = [...words.querySelectorAll('[data-testid="tweetPhoto"]')].indexOf(tile)
+      const real = sheet.source.querySelectorAll('[data-testid="tweetPhoto"]')[index]
+      if (real) openMedia(real)
+    })
     const bar = document.createElement('div')
     bar.className = 'xnote-cover-actions'
     // The copy is the n-th button of the real row: pass the click on. X does the action.

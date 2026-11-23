@@ -70,7 +70,8 @@ function gallery(hit: Element) {
   for (const tile of tiles) {
     const video = tile.querySelector('video')
     const img = tile.querySelector('img')
-    const src = video ? video.currentSrc : img?.currentSrc || img?.src
+    // The page shows a small photo; the preview asks the CDN for the large one, as X's viewer does.
+    const src = video ? video.currentSrc : (img?.currentSrc || img?.src)?.replace(/([?&]name=)\w+/, '$1large')
     if (!src?.startsWith('https://')) continue
     if (tile === hit) selected = media.length
     media.push({ kind: video ? 'video' : 'photo', url: src, alt: img?.alt ?? '' })
@@ -224,5 +225,10 @@ export function installMediaPreview(store: Store) {
   return {
     isOpen: () => !!dialog,
     waitingForVideo: (video: HTMLMediaElement) => video === pendingVideo,
+    /** Opens the preview at a photo or video of a post on the page; false when it has none. */
+    open: (element: Element) => {
+      const hit = mediaTarget(element)
+      return !!hit && open(hit)
+    },
   }
 }
