@@ -1,5 +1,6 @@
 import { t } from './i18n.ts'
 import { installGallerySwipe } from './gallery-swipe.ts'
+import { entityMedia } from './media-preview.ts'
 import { addStyle, onPageChange, queuePageCheck } from './page.ts'
 import { fibers } from './react.ts'
 import { feedKind, isMediaLayer } from './route.ts'
@@ -86,6 +87,8 @@ html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radiu
 .xnote-cover-text.xnote-cover-article { display: block; padding: 64px 48px 24px; }
 .xnote-cover-article > * { width: min(640px, 100%); margin: 0 auto !important; font-size: inherit !important; line-height: inherit !important; }
 .xnote-cover-article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) { display: none !important; }
+/* A video of the cover, in the place of the copy of X's player. */
+.xnote-cover-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 .xnote-cover-actions { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; }
 .xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
 /* X colours its buttons and shows their names from script when the pointer is over them. The
@@ -142,6 +145,21 @@ ${COLUMN} > div > div:first-child { top: ${TOP} !important; }
 const INTERACTIVE = 'a, button, input, textarea, video, [role="button"], [role="link"], [data-testid="videoPlayer"]'
 // The parts of a post that do something on a click, for clicks on the cover's copy.
 const PARTS = 'a[href], article, [role="link"]'
+
+/** A plain player for X's video `player`, from the files X has listed for it (private props, checked). */
+function playable(player: Element | undefined) {
+  const props = player && fibers(player).map((fiber) => fiber.memoizedProps).find((p) => Array.isArray(p?.source?.variants))
+  const media = props && entityMedia({ type: 'video', media_url_https: props.poster?.url, video_info: { variants: props.source.variants } })
+  if (!media) return null
+  const video = document.createElement('video')
+  video.className = 'xnote-cover-video'
+  video.controls = true
+  video.playsInline = true
+  video.preload = 'none'
+  if (media.poster) video.poster = media.poster
+  video.src = media.url
+  return video
+}
 const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
 const HIDE_ICON = 'M11.59 12L3.54 3.96l1.42-1.42L14.41 12l-9.45 9.46-1.42-1.42L11.59 12zm7 0l-8.05-8.04 1.42-1.42L21.41 12l-9.45 9.46-1.42-1.42L18.59 12z'
 const SHOW_ICON = 'M12.04 2.54l1.42 1.42L5.41 12l8.05 8.04-1.42 1.42L2.59 12l9.45-9.46zm7 0l1.42 1.42L12.41 12l8.05 8.04-1.42 1.42L9.59 12l9.45-9.46z'
@@ -263,6 +281,12 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
       words.dataset.key = key
       const top = words.scrollTop
       words.replaceChildren(copyOf(text))
+      // A copy of X's player has no script and a blob address it cannot play: put a plain player in its place.
+      const players = text.querySelectorAll('[data-testid="videoPlayer"]')
+      words.querySelectorAll('[data-testid="videoPlayer"]').forEach((copy, index) => {
+        const video = playable(players[index])
+        if (video) copy.replaceWith(video)
+      })
       sheet.source = text
       words.scrollTop = top
       const length = text.textContent?.length ?? 0
@@ -331,6 +355,7 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
     // the same part of the real post instead: a photo opens in the media preview; a link, an
     // embedded post or a quoted post gets the click, so X opens it as on the right.
     words.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('video')) return // the player's own controls
       const copy = words.firstElementChild
       const tile = (event.target as Element).closest('[data-testid="tweetPhoto"]')
       const part = (event.target as Element).closest(PARTS)
