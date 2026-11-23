@@ -173,7 +173,7 @@ type Sheet = {
   opened: number
   shown: boolean
   trail: string[] // the pages opened inside the sheet, one browser history entry each
-  page?: { path: string; since: number } // the post page that the sheet shows now
+  page?: { path: string; since: number; touched?: true } // the post page that the sheet shows now; touched once the user scrolls
   closing?: true
 }
 
@@ -389,6 +389,14 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
       // On a new page X scrolls the post to just below the title bar, as if the bar were at the
       // top of the window. Here the bar is lower and would cover the post's first lines.
       const bar = document.querySelector(`${COLUMN} > div > div:first-child`)
+      // The cover shows the post, so the page can start at the replies. X lays the post out bit by
+      // bit (an article's images), so follow its bottom for a while, until the user scrolls.
+      const cell = post?.closest('[data-testid="cellInnerDiv"]')
+      if (store.get().sheetToReplies && cell && bar && !sheet.page.touched && Date.now() - sheet.page.since < 3000) {
+        const below = cell.getBoundingClientRect().bottom - bar.getBoundingClientRect().bottom
+        if (Math.abs(below) > 1) scrollBy(0, below)
+        return
+      }
       if (post && bar && Date.now() - sheet.page.since < 1000) {
         const covered = bar.getBoundingClientRect().bottom - post.getBoundingClientRect().top
         if (covered > 0 && covered < innerHeight / 4) scrollBy(0, -covered)
@@ -428,6 +436,10 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
   // "Back" must close the sheet before X draws the feed again, not one frame later.
   addEventListener('popstate', syncSheet)
   addEventListener('resize', cutHole)
+  // The user scrolling the page ends the jump to the replies.
+  for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) {
+    addEventListener(type, () => sheet?.page && (sheet.page.touched = true), { passive: true, capture: true })
+  }
 
   // Clicks that xnote passes on to X must not be handled by xnote again.
   let forwarding = false
