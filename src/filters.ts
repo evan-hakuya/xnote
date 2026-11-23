@@ -82,7 +82,10 @@ export function installFilters(store: Store) {
       if (!article && cell.childElementCount === 0) continue // X has not filled the cell yet
       const tweet = article ? fibers(article).map((fiber) => fiber.memoizedProps?.tweet).find(Boolean) : undefined
       // X shows a quoted post from a blocked or muted account as an article inside the article.
-      const { kinds, quoted } = kindsOf(entryId, tweet, article?.querySelector('article') != null)
+      // A long-form article, and the posts it embeds, are articles too, and are not that.
+      const READ_VIEW = '[data-testid="twitterArticleReadView"]'
+      const tombstone = article?.querySelector(`article:not(${READ_VIEW}, ${READ_VIEW} article)`) != null
+      const { kinds, quoted } = kindsOf(entryId, tweet, tombstone)
       cell.dataset.xnote = kinds.join(' ')
       if (quoted) cell.dataset.xnoteQuote = quoted
     }

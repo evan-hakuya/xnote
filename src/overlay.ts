@@ -240,7 +240,8 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
   const setCover = (post: Element | null | undefined) => {
     if (!sheet || !post) return
     const [words, bar] = sheet.cover.children as unknown as [HTMLElement, HTMLElement]
-    const text = post.querySelector('[data-testid="tweetText"]')
+    // A long-form article shows its title on the cover; its body, with the posts it embeds, is on the right.
+    const text = post.querySelector('[data-testid="twitter-article-title"], [data-testid="tweetText"]')
     if (text && text.textContent !== words.textContent) {
       words.replaceChildren(copyOf(text))
       const length = text.textContent?.length ?? 0

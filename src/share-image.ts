@@ -345,7 +345,8 @@ function open(store: Store, source: HTMLElement) {
     domToBlob(shot, {
       width: shot.offsetWidth,
       height: shot.offsetHeight,
-      scale: 2,
+      // A canvas is at most 32767px high in Chromium: a long article gets a lower resolution.
+      scale: Math.min(2, 32000 / shot.offsetHeight),
       backgroundColor: body.backgroundColor,
       // Read X's media again with CORS: the page's own copies were loaded without it (ADR-0001).
       fetch: { requestInit: { cache: 'reload' } },
