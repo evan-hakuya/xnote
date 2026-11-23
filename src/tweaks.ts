@@ -136,6 +136,8 @@ html ${FOLLOW}:hover { background-color: rgb(${BLUE}) !important; }`,
   hideMorePosts: marked('more'),
   hideUnavailableQuotes: marked('tombstone'),
   hideQuotes: hide(...QUOTE_BOXES.map((box) => `#react-root article ${box}`)), // not in the share window, which has its own switch
+  // Only the sheet, which X's viewer for photos and videos never is: the cover shows this post already.
+  sheetHidePost: hide('html.xnote-sheet main [data-testid="cellInnerDiv"]:has(article[tabindex="-1"])'),
   // The tabs and the content of Explore, which leaves the search box.
   hideExplore: hide(
     'html.xnote-explore [data-testid="primaryColumn"] > div > div:first-of-type nav',

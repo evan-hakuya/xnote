@@ -5,6 +5,7 @@ export const defaults = {
   masonrySearch: true,
   hideThreadReplies: false,
   detailOverlay: true,
+  sheetHidePost: true, // in the popup of a text or article post, the post only on the left
   hoverPlay: 0,
   mediaCtrlPreview: false,
   mediaHoverPreview: 0,
