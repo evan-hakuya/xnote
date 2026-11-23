@@ -5,7 +5,7 @@ export const defaults = {
   masonrySearch: true,
   hideThreadReplies: false,
   detailOverlay: true,
-  sheetToReplies: true, // the popup of a text or article post opens its right side at the replies
+  sheetCollapse: true, // the popup of a text or article post shows the post on its right collapsed, as its card did
   hoverPlay: 0,
   mediaCtrlPreview: false,
   mediaHoverPreview: 0,

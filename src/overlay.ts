@@ -116,6 +116,11 @@ html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radiu
 }
 #xnote-cover [data-tip]:hover::after { opacity: 1; transition: opacity 0.1s 0.4s; }
 html.xnote-sheet [data-testid="sidebarColumn"] { display: none !important; }
+/* The collapsed post on the right, and its "Show more" in the look of X's own. */
+html.xnote-sheet main .xnote-collapsed { max-height: var(--xnote-collapsed) !important; overflow: hidden !important; }
+#xnote-cover .xnote-show-more { display: none; }
+.xnote-show-more { display: block; margin: 4px 0 0; padding: 0; border: 0; background: none; color: rgb(29, 155, 240); font: inherit; font-size: 15px; cursor: pointer; }
+.xnote-show-more:hover { text-decoration: underline; }
 html.xnote-sheet header[role="banner"] { position: fixed !important; visibility: hidden; }
 html.xnote-sheet main[role="main"] { flex-grow: 1 !important; align-items: stretch !important; }
 html.xnote-sheet main[role="main"] > div,
@@ -135,6 +140,8 @@ ${COLUMN} > div > div:first-child { top: ${TOP} !important; }
 `
 // A click on these keeps what X does with it.
 const INTERACTIVE = 'a, button, input, textarea, video, [role="button"], [role="link"], [data-testid="videoPlayer"]'
+// The parts of a post that do something on a click, for clicks on the cover's copy.
+const PARTS = 'a[href], article, [role="link"]'
 const CLOSE_ICON = 'M10.59 12 4.54 5.96l1.42-1.42L12 10.59l6.04-6.05 1.42 1.42L13.41 12l6.05 6.04-1.42 1.42L12 13.41l-6.04 6.05-1.42-1.42L10.59 12z'
 const HIDE_ICON = 'M11.59 12L3.54 3.96l1.42-1.42L14.41 12l-9.45 9.46-1.42-1.42L11.59 12zm7 0l-8.05-8.04 1.42-1.42L21.41 12l-9.45 9.46-1.42-1.42L18.59 12z'
 const SHOW_ICON = 'M12.04 2.54l1.42 1.42L5.41 12l8.05 8.04-1.42 1.42L2.59 12l9.45-9.46zm7 0l1.42 1.42L12.41 12l8.05 8.04-1.42 1.42L9.59 12l9.45-9.46z'
@@ -173,7 +180,8 @@ type Sheet = {
   opened: number
   shown: boolean
   trail: string[] // the pages opened inside the sheet, one browser history entry each
-  page?: { path: string; since: number; touched?: true } // the post page that the sheet shows now; touched once the user scrolls
+  page?: { path: string; since: number; expanded?: true } // the post page that the sheet shows now; expanded after "Show more"
+  lines: number // how many lines of text the card showed, for the collapsed post on the right
   closing?: true
   source?: Element // what the cover's text is a copy of
 }
@@ -319,16 +327,22 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
     cover.id = 'xnote-cover'
     const words = document.createElement('div')
     words.className = 'xnote-cover-text'
-    // A photo in the copy is the n-th photo of the real post: open that one in the media preview,
-    // instead of following the copy's link, which leaves X for a full page load.
+    // The copy has no script, and its links leave X for a full page load. A click on it goes to
+    // the same part of the real post instead: a photo opens in the media preview; a link, an
+    // embedded post or a quoted post gets the click, so X opens it as on the right.
     words.addEventListener('click', (event) => {
+      const copy = words.firstElementChild
       const tile = (event.target as Element).closest('[data-testid="tweetPhoto"]')
-      if (!tile) return
+      const part = (event.target as Element).closest(PARTS)
+      if (!copy || (!tile && (!part || part === copy))) return
       event.preventDefault()
       if (!sheet?.source?.isConnected) return
-      const index = [...words.querySelectorAll('[data-testid="tweetPhoto"]')].indexOf(tile)
-      const real = sheet.source.querySelectorAll('[data-testid="tweetPhoto"]')[index]
-      if (real) openMedia(real)
+      const same = (selector: string, element: Element) =>
+        sheet!.source!.querySelectorAll<HTMLElement>(selector)[[...copy.querySelectorAll(selector)].indexOf(element)]
+      if (tile) {
+        const real = same('[data-testid="tweetPhoto"]', tile)
+        if (real) openMedia(real)
+      } else same(PARTS, part!)?.click()
     })
     const bar = document.createElement('div')
     bar.className = 'xnote-cover-actions'
@@ -352,7 +366,11 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
     tools.append(toolButton(t('close'), CLOSE_ICON, closeAll), side)
     cover.append(words, bar, tools)
     if (sheet) releaseBackdrop(sheet.backdrop) // a sheet that was still closing
-    sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false, trail: [] }
+    // The right side shows as many lines of the post as its card did; an article, a few.
+    const cardText = post.querySelector<HTMLElement>('[data-testid="tweetText"]')
+    const lineHeight = cardText ? parseFloat(getComputedStyle(cardText).lineHeight) : NaN
+    const lines = cardText && lineHeight > 0 ? Math.max(1, Math.round(cardText.offsetHeight / lineHeight)) : 3
+    sheet = { backdrop, cover, from: location.pathname, top: scrollY, opened: Date.now(), shown: false, trail: [], lines }
     setCover(post)
     layers.prepend(backdrop, cover)
     const theme = getComputedStyle(document.body)
@@ -384,6 +402,34 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
     requestAnimationFrame(reveal)
   }
 
+  // On the right, the post shows as much as its card did, then "Show more". All of it is loaded;
+  // the rest is only out of sight until the click.
+  const collapse = (post: Element, current: Sheet) => {
+    const body =
+      post.querySelector<HTMLElement>('[data-testid="twitterArticleRichTextView"]') ??
+      post.querySelector<HTMLElement>('[data-testid="tweetText"]')
+    const on = store.get().sheetCollapse && !current.page?.expanded && body !== null
+    // Only on the page: the cover's copy of an article carries the marks along.
+    for (const old of document.querySelectorAll('main .xnote-collapsed')) if (old !== body || !on) old.classList.remove('xnote-collapsed')
+    let more = document.querySelector('main .xnote-show-more')
+    if (!on) return void more?.remove()
+    const lineHeight = parseFloat(getComputedStyle(body.firstElementChild ?? body).lineHeight) || 24
+    body.style.setProperty('--xnote-collapsed', `${current.lines * lineHeight}px`)
+    body.classList.add('xnote-collapsed')
+    if (body.scrollHeight <= body.clientHeight + 2) return void more?.remove() // it fits
+    if (more?.previousElementSibling === body) return
+    more?.remove()
+    more = document.createElement('button')
+    more.className = 'xnote-show-more'
+    more.textContent = t('showMore')
+    more.addEventListener('click', (event) => {
+      event.stopPropagation() // not a click on the post
+      if (current.page) current.page.expanded = true
+      collapse(post, current)
+    })
+    body.after(more)
+  }
+
   const syncSheet = () => {
     if (!sheet || sheet.closing) return
     const path = location.pathname
@@ -402,14 +448,7 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
       // On a new page X scrolls the post to just below the title bar, as if the bar were at the
       // top of the window. Here the bar is lower and would cover the post's first lines.
       const bar = document.querySelector(`${COLUMN} > div > div:first-child`)
-      // The cover shows the post, so the page can start at the replies. X lays the post out bit by
-      // bit (an article's images), so follow its bottom for a while, until the user scrolls.
-      const cell = post?.closest('[data-testid="cellInnerDiv"]')
-      if (store.get().sheetToReplies && cell && bar && !sheet.page.touched && Date.now() - sheet.page.since < 3000) {
-        const below = cell.getBoundingClientRect().bottom - bar.getBoundingClientRect().bottom
-        if (Math.abs(below) > 1) scrollBy(0, below)
-        return
-      }
+      if (post) collapse(post, sheet)
       if (post && bar && Date.now() - sheet.page.since < 1000) {
         const covered = bar.getBoundingClientRect().bottom - post.getBoundingClientRect().top
         if (covered > 0 && covered < innerHeight / 4) scrollBy(0, -covered)
@@ -449,10 +488,6 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
   // "Back" must close the sheet before X draws the feed again, not one frame later.
   addEventListener('popstate', syncSheet)
   addEventListener('resize', cutHole)
-  // The user scrolling the page ends the jump to the replies.
-  for (const type of ['wheel', 'keydown', 'pointerdown', 'touchstart']) {
-    addEventListener(type, () => sheet?.page && (sheet.page.touched = true), { passive: true, capture: true })
-  }
 
   // Clicks that xnote passes on to X must not be handled by xnote again.
   let forwarding = false
