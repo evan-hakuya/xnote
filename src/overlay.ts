@@ -82,6 +82,10 @@ html.xnote-sheet-wide #xnote-cover { width: ${WIDTH}; border-radius: ${POP.radiu
 /* The cover has the text above and, like X's viewer, the post's buttons below. */
 .xnote-cover-text { flex: 1; min-height: 0; display: flex; padding: 48px; overflow: auto; }
 .xnote-cover-text > * { display: block !important; margin: auto; font-size: var(--xnote-cover-font) !important; line-height: 1.5 !important; -webkit-line-clamp: unset !important; }
+/* A long-form article is read on the cover in X's own type, from the top, at a reading width. */
+.xnote-cover-text.xnote-cover-article { display: block; padding: 64px 48px 24px; }
+.xnote-cover-article > * { width: min(640px, 100%); margin: 0 auto !important; font-size: inherit !important; line-height: inherit !important; }
+.xnote-cover-article [role="group"]:has([data-testid="like"], [data-testid="unlike"]) { display: none !important; }
 .xnote-cover-actions { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; }
 .xnote-cover-actions > * { width: min(600px, 100% - 32px); margin: 0 !important; border: 0 !important; }
 /* X colours its buttons and shows their names from script when the pointer is over them. The
@@ -240,10 +244,17 @@ export function installOverlay(store: Store, isReadingPositionReady: (top: numbe
   const setCover = (post: Element | null | undefined) => {
     if (!sheet || !post) return
     const [words, bar] = sheet.cover.children as unknown as [HTMLElement, HTMLElement]
-    // A long-form article shows its title on the cover; its body, with the posts it embeds, is on the right.
-    const text = post.querySelector('[data-testid="twitter-article-title"], [data-testid="tweetText"]')
-    if (text && text.textContent !== words.textContent) {
+    // A long-form article is shown whole: cover image, title and body with the posts it embeds.
+    const article = post.querySelector('[data-testid="twitterArticleReadView"]')
+    const text = article ?? post.querySelector('[data-testid="tweetText"]')
+    words.classList.toggle('xnote-cover-article', article !== null)
+    // X adds an article's images after its text, so they count as a change too.
+    const key = text ? `${text.querySelectorAll('img').length} ${text.textContent}` : ''
+    if (text && key !== words.dataset.key) {
+      words.dataset.key = key
+      const top = words.scrollTop
       words.replaceChildren(copyOf(text))
+      words.scrollTop = top
       const length = text.textContent?.length ?? 0
       sheet.cover.style.setProperty('--xnote-cover-font', length < 60 ? '40px' : length < 240 ? '28px' : '20px')
     }
