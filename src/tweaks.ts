@@ -108,7 +108,9 @@ html #xnote-dock { bottom: 12px; }`,
     '[data-testid="profileAnalyticsUpsell"]',
     '[data-testid="analytics-preview"]',
     '[aria-live="polite"][role="status"]:has(a[href^="/i/premium_sign_up"])',
-    '[data-testid="sidebarColumn"] div:has(> aside[role="complementary"] a[href^="/i/premium_sign_up"])',
+    // The upsell sits in the list of sidebar sections, next to the search box: hide it, and a wrapper of its own.
+    '[data-testid="sidebarColumn"] aside[role="complementary"]:has(a[href^="/i/premium_sign_up"])',
+    '[data-testid="sidebarColumn"] div:has(> aside[role="complementary"]:only-child a[href^="/i/premium_sign_up"])',
   ),
   // The sidebar is a list of sections and the search box is the first one.
   hideSidebarContent: hide('[data-testid="sidebarColumn"] div:has(> div:first-child form[role="search"]) > div:not(:first-child)'),
