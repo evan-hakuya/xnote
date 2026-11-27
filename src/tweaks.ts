@@ -59,6 +59,8 @@ const rules: Partial<Record<Switch, string>> = {
     '[data-testid="tweet"] [data-testid^="followups_"]',
     '[data-testid="tweet"] [data-testid^="followups_"] + nav',
     '[data-testid="tweet"] a[href="/i/grok"]',
+    // Grok Bot offers in the timeline, such as holiday shopping: a prompt whose button signs up through a Grok page.
+    '[data-testid="cellInnerDiv"]:has([data-testid="inlinePrompt"] a[href*="grok"])',
     // "Profile Summary" at the end of the card of a person. It has no name of its own to match.
     '[data-testid="HoverCard"] > div > div > div:last-child:has(> button)',
   ),
